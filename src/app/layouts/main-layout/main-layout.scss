@@ -1,0 +1,320 @@
+:host {
+  display: block;
+  height: 100vh;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.menu-bar {
+  height: 32px;
+  background-color: #f7f7f7;
+  border-bottom: 1px solid #e8e8e8;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 13px;
+  color: #333;
+
+  .menu-item {
+    padding: 4px 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    user-select: none;
+    &:hover { background-color: #e6e6e6; }
+  }
+}
+
+.main-layout {
+  flex: 1;
+  overflow: hidden;
+}
+
+nz-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.sidebar {
+  background-color: #fafafa !important;
+  border-right: 1px solid #e8e8e8;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e8e8e8;
+  flex-shrink: 0;
+
+  .logo {
+    display: flex;
+    align-items: center;
+    color: #333;
+    font-size: 16px;
+    span[nz-icon] { color: #1890ff; }
+    .logo-text { font-weight: 600; margin-left: 8px; }
+  }
+
+  .btn-new { color: #1890ff; &:hover { background: rgba(24, 144, 255, 0.1); } }
+}
+
+/* --- CẤU TRÚC FOLDER TREE MỚI --- */
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 24px;
+}
+
+.folder-group {
+  margin-bottom: 4px;
+}
+
+.folder-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  cursor: pointer;
+  color: #595959;
+  font-weight: 600;
+  font-size: 13px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+  transition: background 0.2s;
+
+  &:hover {
+    background: #f0f0f0;
+    .folder-actions { opacity: 1; }
+  }
+
+  &.active {
+    background: #e6f7ff;
+    color: #1890ff;
+  }
+
+  &.uncategorized {
+    background: transparent;
+    color: #8c8c8c;
+    border-top: 2px dashed #e8e8e8;
+    margin-top: 16px;
+  }
+
+  .folder-title-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    overflow: hidden;
+
+    .folder-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .edit-folder-input {
+      flex: 1;
+      width: 100%;
+      border: 1px solid #1890ff;
+      border-radius: 4px;
+      padding: 2px 4px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      outline: none;
+    }
+  }
+
+  .folder-actions {
+    display: flex;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 0.2s;
+
+    button {
+      padding: 2px;
+      height: 24px;
+      width: 24px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+}
+
+.custom-note-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+
+  .empty-folder-text {
+    padding: 8px 16px 8px 40px;
+    color: #bfbfbf;
+    font-size: 12px;
+    font-style: italic;
+  }
+
+  .custom-note-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    background: transparent;
+
+    &.indented {
+      padding-left: 36px; /* Lùi đầu dòng cho note trong folder */
+    }
+
+    &:hover {
+      background-color: #f5f5f5;
+      .note-actions { opacity: 1; }
+    }
+
+    &.active-note {
+      background-color: #e6f7ff;
+      border-right: 3px solid #1890ff;
+    }
+
+    .note-item-content {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .note-title {
+      color: #262626;
+      font-weight: 500;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .note-snippet {
+      color: #8c8c8c;
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 4px;
+    }
+
+    .edit-title-input {
+      width: calc(100% - 8px);
+      border: 1px solid #1890ff;
+      border-radius: 4px;
+      padding: 0 4px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      outline: none;
+    }
+
+    .note-actions {
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.2s;
+      button { padding: 4px; height: auto; line-height: 1; }
+    }
+  }
+}
+
+/* --- WORKSPACE --- */
+.workspace {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+}
+
+.editor-toolbar {
+  height: 48px;
+  padding: 0 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #fcfcfc;
+  border-bottom: 1px solid #e8e8e8;
+  position: relative;
+
+  .title-group {
+    position: absolute;
+    left: 16px;
+    .current-note-title { color: #333; font-size: 15px; font-weight: 600; }
+  }
+  .view-toggles { display: flex; gap: 8px; }
+}
+
+.split-pane {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+
+  .pane { overflow-y: auto; height: 100%; }
+  .editor-pane { border-right: 1px solid #e8e8e8; }
+  .preview-pane { background-color: #ffffff; }
+
+  &.split { .editor-pane, .preview-pane { flex: 1; width: 50%; } }
+  &.edit { .editor-pane { flex: 1; width: 100%; border-right: none; } .preview-pane { display: none; } }
+  &.preview { .editor-pane { display: none; } .preview-pane { flex: 1; width: 100%; } }
+}
+
+.codemirror-wrapper {
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  ::ng-deep .cm-editor {
+    height: 100%;
+    width: 100%;
+    max-width: 800px;
+    padding: 0 24px;
+    outline: none !important;
+  }
+}
+
+.preview-content {
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #333333;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 24px;
+
+  ::ng-deep {
+    h1, h2, h3, h4, h5, h6 { color: #1a1a1a; margin-top: 1.5em; margin-bottom: 0.5em; }
+    p, ul, ol { color: #444444; }
+    a { color: #1890ff; text-decoration: none; &:hover { text-decoration: underline; } }
+    code { background-color: #f5f5f5; padding: 0.2em 0.4em; border-radius: 4px; font-size: 0.9em; color: #d14; }
+    li {
+      margin-bottom: 4px;
+      &:has(> input[type="checkbox"]), &.task-list-item { list-style-type: none !important; margin-left: -24px; }
+    }
+    input[type="checkbox"] { margin-right: 8px; cursor: pointer; accent-color: #1890ff; transform: scale(1.1); position: relative; top: 1px; }
+    ul.contains-task-list { padding-left: 24px; }
+  }
+}
+
+.empty-workspace {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: #8c8c8c;
+  background-color: #fafafa;
+  .empty-icon { font-size: 64px; margin-bottom: 16px; opacity: 0.5; color: #bfbfbf; }
+  h2 { color: #595959; font-weight: normal; margin-bottom: 8px; }
+}

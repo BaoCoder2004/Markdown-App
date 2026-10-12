@@ -1,0 +1,153 @@
+<div class="app-container">
+  <div class="menu-bar">
+    <div class="menu-item" nz-dropdown [nzDropdownMenu]="fileMenu" nzTrigger="click">File</div>
+    <nz-dropdown-menu #fileMenu="nzDropdownMenu">
+      <ul nz-menu>
+        <li nz-menu-item (click)="createNewNote(null)">New File (Root)</li>
+        <li nz-menu-item (click)="createNewFolder()">New Folder</li>
+        <li nz-menu-divider></li>
+        <li nz-menu-item (click)="openFile()">Open File...</li>
+        <li nz-menu-item (click)="openFolder()">Open Folder...</li>
+        <li nz-menu-divider></li>
+        <li nz-menu-item (click)="exportFile()">Save File (Export)</li>
+      </ul>
+    </nz-dropdown-menu>
+
+    <div class="menu-item">Edit</div>
+    <div class="menu-item">View</div>
+    <div class="menu-item">Help</div>
+  </div>
+
+  <nz-layout class="main-layout">
+    <nz-sider [nzWidth]="280" nzTheme="light" class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <span nz-icon nzType="book" nzTheme="outline"></span>
+          <span class="logo-text">Markdown Web Demo</span>
+        </div>
+        <button nz-button nzType="text" nzSize="small" nzTooltipTitle="New Folder" nzTooltipPlacement="bottom" (click)="createNewFolder()" class="btn-new">
+          <span nz-icon nzType="folder-add"></span>
+        </button>
+      </div>
+
+      <div class="sidebar-content">
+
+        @for (folder of foldersWithNotes(); track folder.id) {
+          <div class="folder-group">
+            <div class="folder-header" [class.active]="store.activeFolderId() === folder.id" (click)="toggleFolder(folder.id, $event)">
+              <div class="folder-title-wrapper">
+                <span nz-icon [nzType]="isExpanded(folder.id) ? 'folder-open' : 'folder'" nzTheme="outline"></span>
+                @if (editingFolderId() === folder.id) {
+                  <input type="text" class="edit-folder-input" [ngModel]="editFolderText()" (ngModelChange)="editFolderText.set($event)" (blur)="saveFolder(folder)" (keydown.enter)="saveFolder(folder, $event)" (click)="$event.stopPropagation()" />
+                } @else {
+                  <span class="folder-name" [title]="folder.name">{{ folder.name }}</span>
+                }
+              </div>
+
+              <div class="folder-actions">
+                <button nz-button nzType="text" nzSize="small" nzTooltipTitle="New Note here" (click)="createNewNote(folder.id); $event.stopPropagation()">
+                  <span nz-icon nzType="plus"></span>
+                </button>
+                <button nz-button nzType="text" nzSize="small" nzTooltipTitle="Rename" (click)="startEditFolder($event, folder)">
+                  <span nz-icon nzType="edit"></span>
+                </button>
+                <button nz-button nzType="text" nzSize="small" nzTooltipTitle="Export Folder" (click)="exportFolder(folder, $event)">
+                  <span nz-icon nzType="download"></span>
+                </button>
+                <button nz-button nzType="text" nzDanger nzSize="small" nzTooltipTitle="Delete" (click)="deleteFolder(folder.id, $event)">
+                  <span nz-icon nzType="delete"></span>
+                </button>
+              </div>
+            </div>
+
+            @if (isExpanded(folder.id)) {
+              <ul class="custom-note-list">
+                @if (folder.notes.length === 0) {
+                  <li class="empty-folder-text">Folder is empty</li>
+                }
+                @for (note of folder.notes; track note.id) {
+                  <li class="custom-note-item indented" [class.active-note]="store.activeNoteId() === note.id" (click)="selectNote(note.id)">
+                    <div class="note-item-content">
+                      @if (editingTitleId() === note.id) {
+                        <input type="text" class="edit-title-input" [ngModel]="editTitleText()" (ngModelChange)="editTitleText.set($event)" (blur)="saveTitle(note)" (keydown.enter)="saveTitle(note, $event)" (click)="$event.stopPropagation()" />
+                      } @else {
+                        <div class="note-title" [title]="note.title">{{ note.title || 'Untitled Note' }}</div>
+                      }
+                      <div class="note-snippet">{{ getSnippet(note.content) }}</div>
+                    </div>
+                    <div class="note-actions">
+                      <button nz-button nzType="text" nzSize="small" (click)="startEditTitle($event, note)"><span nz-icon nzType="edit"></span></button>
+                      <button nz-button nzType="text" nzDanger nzSize="small" (click)="deleteNote(note.id, $event)"><span nz-icon nzType="delete"></span></button>
+                    </div>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        }
+
+        @if (rootNotes().length > 0) {
+          <div class="folder-group">
+            <div class="folder-header uncategorized" [class.active]="store.activeFolderId() === null" (click)="store.setActiveFolderId(null)">
+               <div class="folder-title-wrapper">
+                 <span nz-icon nzType="inbox" nzTheme="outline"></span>
+                 <span class="folder-name">Uncategorized</span>
+               </div>
+            </div>
+            <ul class="custom-note-list">
+              @for (note of rootNotes(); track note.id) {
+                <li class="custom-note-item" [class.active-note]="store.activeNoteId() === note.id" (click)="selectNote(note.id)">
+                  <div class="note-item-content">
+                    @if (editingTitleId() === note.id) {
+                      <input type="text" class="edit-title-input" [ngModel]="editTitleText()" (ngModelChange)="editTitleText.set($event)" (blur)="saveTitle(note)" (keydown.enter)="saveTitle(note, $event)" (click)="$event.stopPropagation()" />
+                    } @else {
+                      <div class="note-title" [title]="note.title">{{ note.title || 'Untitled Note' }}</div>
+                    }
+                    <div class="note-snippet">{{ getSnippet(note.content) }}</div>
+                  </div>
+                  <div class="note-actions">
+                    <button nz-button nzType="text" nzSize="small" (click)="startEditTitle($event, note)"><span nz-icon nzType="edit"></span></button>
+                    <button nz-button nzType="text" nzDanger nzSize="small" (click)="deleteNote(note.id, $event)"><span nz-icon nzType="delete"></span></button>
+                  </div>
+                </li>
+              }
+            </ul>
+          </div>
+        }
+
+      </div>
+    </nz-sider>
+
+    <nz-layout>
+      <nz-content class="workspace">
+        @if (store.activeNote(); as activeNote) {
+          <div class="editor-toolbar">
+            <div class="title-group">
+              <span class="current-note-title">{{ activeNote.title }}</span>
+            </div>
+            <div class="view-toggles">
+               <button nz-button [nzType]="viewMode() === 'edit' ? 'primary' : 'default'" nzSize="small" (click)="setViewMode('edit')"><span nz-icon nzType="edit"></span></button>
+               <button nz-button [nzType]="viewMode() === 'split' ? 'primary' : 'default'" nzSize="small" (click)="setViewMode('split')"><span nz-icon nzType="read"></span></button>
+               <button nz-button [nzType]="viewMode() === 'preview' ? 'primary' : 'default'" nzSize="small" (click)="setViewMode('preview')"><span nz-icon nzType="eye"></span></button>
+            </div>
+          </div>
+
+          <div class="split-pane" [ngClass]="viewMode()">
+            <div class="pane editor-pane">
+              <div #editorContainer class="codemirror-wrapper"></div>
+            </div>
+            <div class="pane preview-pane">
+               <div class="preview-content" [innerHTML]="parsedContent()"></div>
+            </div>
+          </div>
+        } @else {
+          <div class="empty-workspace">
+            <span nz-icon nzType="folder-open" nzTheme="outline" class="empty-icon"></span>
+            <h2>No note selected</h2>
+            <p>Select a note from the sidebar or create a new one.</p>
+          </div>
+        }
+      </nz-content>
+    </nz-layout>
+  </nz-layout>
+</div>
