@@ -43,5 +43,4 @@ __screenshots__/
 .DS_Store
 Thumbs.db
 
-
-/public/icons/
+/public/manifest.webmanifest
