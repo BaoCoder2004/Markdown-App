@@ -12,7 +12,7 @@ import {
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser'; 
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 
 // NG-ZORRO
 import { NzLayoutModule } from 'ng-zorro-antd/layout';
@@ -22,11 +22,12 @@ import { NzTooltipModule } from 'ng-zorro-antd/tooltip';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzDropdownModule } from 'ng-zorro-antd/dropdown';
 import { NzTagModule } from 'ng-zorro-antd/tag';
-import { NzInputModule } from 'ng-zorro-antd/input'; 
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzSelectModule } from 'ng-zorro-antd/select'; // <-- Bổ sung Module Select
 
 // CodeMirror
 import { EditorState } from '@codemirror/state';
-import { EditorView, keymap, lineNumbers } from '@codemirror/view';
+import { EditorView, keymap, lineNumbers, ViewPlugin, ViewUpdate, MatchDecorator, Decoration } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
@@ -35,38 +36,69 @@ import { tags as t } from '@lezer/highlight';
 
 // JSZip
 import JSZip from 'jszip';
-
-// Markdown Parsers
 import { Marked } from 'marked';
 import markedKatex from 'marked-katex-extension';
-import mermaid from 'mermaid'
+import mermaid from 'mermaid';
 
 import { NoteStore } from '../../core/stores/note.store';
 import { Note, NoteStatus } from '../../core/models/note.model';
 import { Folder } from '../../core/models/folder.model';
 
 const customTheme = EditorView.theme({
-  '&': { backgroundColor: '#ffffff !important', color: '#333333 !important' },
+  '&': { backgroundColor: 'transparent !important', color: 'var(--text-main) !important' },
   '.cm-content': { fontFamily: "'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", fontSize: '15px' },
-  '.cm-gutters': { backgroundColor: '#ffffff !important', color: '#a0a0a0', borderRight: 'none' },
+  '.cm-gutters': { backgroundColor: 'transparent !important', color: 'var(--text-muted)', borderRight: 'none' },
   '&.cm-focused .cm-cursor': { borderLeftColor: '#1890ff' },
-  '&.cm-focused .cm-selectionBackground, ::selection': { backgroundColor: '#b3d8ff !important' },
+  '&.cm-focused .cm-selectionBackground, ::selection': { backgroundColor: 'var(--selection-bg) !important' },
+  '.cm-math-dollar': { color: '#2463EB !important', fontWeight: 'bold' },
+  '.cm-code-meta': { color: 'var(--hl-keyword) !important' }
 });
 
 const inkdropHighlightStyle = HighlightStyle.define([
-  { tag: t.heading,      color: '#e83e8c', fontWeight: 'bold' },
-  { tag: t.strong,       fontWeight: 'bold', color: '#222' },
-  { tag: t.emphasis,     fontStyle: 'italic', color: '#222' },
-  { tag: t.strikethrough, textDecoration: 'line-through', color: '#999' },
-  { tag: t.link,         color: '#8a2be2', textDecoration: 'underline' },
-  { tag: t.url,          color: '#8a2be2' },
-  { tag: t.monospace,    color: '#d14', backgroundColor: '#f5f5f5', borderRadius: '3px', padding: '1px 3px' },
-  { tag: t.comment,      color: '#999', fontStyle: 'italic' },
-  { tag: t.meta,         color: '#1890ff', fontWeight: '500' },
-  { tag: t.punctuation,  color: '#1890ff', fontWeight: '500' },
-  { tag: t.angleBracket, color: '#1890ff' },
-  { tag: t.squareBracket,color: '#1890ff' }
+  { tag: t.heading,      color: 'var(--hl-heading)', fontWeight: 'bold' },
+  { tag: t.strong,       fontWeight: 'bold', color: 'var(--hl-strong)' },
+  { tag: t.emphasis,     fontStyle: 'italic', color: 'var(--hl-em)' },
+  { tag: t.strikethrough, textDecoration: 'line-through', color: 'var(--hl-del)' },
+  { tag: t.link,         color: 'var(--hl-link)', textDecoration: 'underline' },
+  { tag: t.url,          color: 'var(--hl-link)' },
+  { tag: t.monospace,    color: 'var(--hl-code)', backgroundColor: 'var(--bg-code)', borderRadius: '3px', padding: '1px 3px' },
+  { tag: t.comment,      color: 'var(--hl-comment)', fontStyle: 'italic' },
+  { tag: t.meta,         color: 'var(--hl-meta)', fontWeight: '500' },
+  { tag: t.punctuation,  color: 'var(--hl-punct)', fontWeight: '500' },
+  { tag: t.angleBracket, color: 'var(--hl-punct)' },
+  { tag: t.squareBracket,color: 'var(--hl-punct)' },
+  { tag: t.string, color: 'var(--hl-string)' },
+  { tag: t.propertyName, color: 'var(--hl-property)' },
+  { tag: t.keyword, color: 'var(--hl-keyword)' },
+  { tag: [t.number, t.bool, t.null], color: 'var(--hl-number)' },
+  { tag: t.operator, color: 'var(--hl-operator)' },
+  { tag: t.function(t.variableName), color: 'var(--hl-function)' },
+  { tag: t.className, color: 'var(--hl-function)' },
+  { tag: t.definition(t.typeName), color: 'var(--hl-keyword)' },
+  { tag: t.typeName, color: 'var(--hl-keyword)' }
 ]);
+
+const dollarDecorator = new MatchDecorator({
+  regexp: /\$/g,
+  decoration: Decoration.mark({ class: 'cm-math-dollar' })
+});
+
+const dollarPlugin = ViewPlugin.fromClass(class {
+  decorations: any;
+  constructor(view: EditorView) { this.decorations = dollarDecorator.createDeco(view); }
+  update(update: ViewUpdate) { this.decorations = dollarDecorator.updateDeco(update, this.decorations); }
+}, { decorations: v => v.decorations });
+
+const codeMetaDecorator = new MatchDecorator({
+  regexp: /(filename|title)="([^"]+)"/g,
+  decoration: Decoration.mark({ class: 'cm-code-meta' })
+});
+
+const codeMetaPlugin = ViewPlugin.fromClass(class {
+  decorations: any;
+  constructor(view: EditorView) { this.decorations = codeMetaDecorator.createDeco(view); }
+  update(update: ViewUpdate) { this.decorations = codeMetaDecorator.updateDeco(update, this.decorations); }
+}, { decorations: v => v.decorations });
 
 const markedInstance = new Marked({ gfm: true });
 markedInstance.use(markedKatex({ throwOnError: false }));
@@ -76,6 +108,48 @@ markedInstance.use({
     code(token: any) {
       if (token.lang === 'mermaid') {
         return `<div class="mermaid">${token.text}</div>`;
+      }
+
+      let lang = token.lang || '';
+      let filename = '';
+      let title = '';
+
+      const filenameMatch = lang.match(/filename="([^"]+)"/);
+      if (filenameMatch) {
+        filename = filenameMatch[1];
+        lang = lang.replace(filenameMatch[0], '');
+      }
+
+      const titleMatch = lang.match(/title="([^"]+)"/);
+      if (titleMatch) {
+        title = titleMatch[1];
+        lang = lang.replace(titleMatch[0], '');
+      }
+
+      lang = lang.trim();
+      let headerHtml = '';
+      if (title || filename) {
+        const svgIcon = `<svg viewBox="64 64 896 896" focusable="false" fill="currentColor" width="1em" height="1em"><path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm0 820c-205.4 0-372-166.6-372-372s166.6-372 372-372 372 166.6 372 372-166.6 372-372 372z"></path><path d="M464 336a48 48 0 1096 0 48 48 0 10-96 0zm72 112h-48c-4.4 0-8 3.6-8 8v272c0 4.4 3.6 8 8 8h48c4.4 0 8-3.6 8-8V456c0-4.4-3.6-8-8-8z"></path></svg>`;
+        headerHtml = `
+          <div class="code-block-header">
+            ${title ? `<div class="code-title"><span class="anticon">${svgIcon}</span>${title}</div>` : ''}
+            ${filename ? `<div class="code-filename">${filename}</div>` : ''}
+          </div>
+        `;
+      }
+
+      const escapeTest = /[&<>"']/;
+      const escapeReplace = /[&<>"']/g;
+      const escapeReplacements: any = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+      const getEscapeReplacement = (ch: string) => escapeReplacements[ch];
+
+      let escapedCode = token.text;
+      if (escapeTest.test(escapedCode)) {
+         escapedCode = escapedCode.replace(escapeReplace, getEscapeReplacement);
+      }
+
+      if (headerHtml) {
+         return `<div class="custom-code-block">${headerHtml}<pre><code class="language-${lang}">${escapedCode}</code></pre></div>`;
       }
       return false;
     }
@@ -89,7 +163,7 @@ mermaid.initialize({ startOnLoad: false, theme: 'default' });
   standalone: true,
   imports: [
     CommonModule, FormsModule, NzLayoutModule, NzMenuModule, NzIconModule,
-    NzTooltipModule, NzButtonModule, NzDropdownModule, NzTagModule, NzInputModule 
+    NzTooltipModule, NzButtonModule, NzDropdownModule, NzTagModule, NzInputModule, NzSelectModule
   ],
   templateUrl: './main-layout.html',
   styleUrls: ['./main-layout.scss'],
@@ -102,6 +176,7 @@ export class MainLayoutComponent implements OnDestroy {
 
   parsedContent = signal<SafeHtml>('');
   viewMode = signal<'edit' | 'split' | 'preview'>('split');
+  currentTheme = signal<'theme-default' | 'theme-dark' | 'theme-cream'>('theme-default');
 
   editingTitleId = signal<string | null>(null);
   editTitleText = signal<string>('');
@@ -112,28 +187,46 @@ export class MainLayoutComponent implements OnDestroy {
 
   inputTagVisible = signal(false);
   inputTagValue = signal('');
-  
-  searchQuery = signal('');
 
-  foldersWithNotes = computed(() => {
-    const query = this.searchQuery().toLowerCase();
-    
-    return this.store.folders().map(folder => {
-      const notes = this.store.notes().filter(n => 
-        n.folderId === folder.id && 
-        (!query || n.title.toLowerCase().includes(query) || n.content.toLowerCase().includes(query))
-      );
-      return { ...folder, notes };
-    })
-    .filter(folder => !query || folder.notes.length > 0); 
+  searchQuery = signal('');
+  selectedTag = signal<string | null>(null); // Trạng thái thẻ đang được chọn lọc
+
+  // Lấy danh sách toàn bộ các Tag duy nhất hiện có trong hệ thống
+  allTags = computed(() => {
+    const tags = new Set<string>();
+    this.store.notes().forEach(n => {
+      if (n.tags) n.tags.forEach(t => tags.add(t));
+    });
+    return Array.from(tags).sort();
   });
 
+  // Lọc thư mục theo cả từ khóa và Tag
+  foldersWithNotes = computed(() => {
+    const query = this.searchQuery().toLowerCase();
+    const tagFilter = this.selectedTag();
+
+    return this.store.folders().map(folder => {
+      const notes = this.store.notes().filter(n => {
+        const matchFolder = n.folderId === folder.id;
+        const matchQuery = !query || n.title.toLowerCase().includes(query) || n.content.toLowerCase().includes(query);
+        const matchTag = !tagFilter || (n.tags && n.tags.includes(tagFilter));
+        return matchFolder && matchQuery && matchTag;
+      });
+      return { ...folder, notes };
+    })
+    .filter(folder => (!query && !tagFilter) || folder.notes.length > 0);
+  });
+
+  // Lọc ghi chú mồ côi theo cả từ khóa và Tag
   rootNotes = computed(() => {
     const query = this.searchQuery().toLowerCase();
-    return this.store.notes().filter(n => 
-      n.folderId === null && 
-      (!query || n.title.toLowerCase().includes(query) || n.content.toLowerCase().includes(query))
-    );
+    const tagFilter = this.selectedTag();
+    return this.store.notes().filter(n => {
+      const matchFolder = n.folderId === null;
+      const matchQuery = !query || n.title.toLowerCase().includes(query) || n.content.toLowerCase().includes(query);
+      const matchTag = !tagFilter || (n.tags && n.tags.includes(tagFilter));
+      return matchFolder && matchQuery && matchTag;
+    });
   });
 
   private editorView?: EditorView;
@@ -154,6 +247,11 @@ export class MainLayoutComponent implements OnDestroy {
   @ViewChild('tagInput') tagInputElement?: ElementRef;
 
   constructor() {
+    if (isPlatformBrowser(this.platformId)) {
+      const savedTheme = localStorage.getItem('app-theme') as any;
+      if (savedTheme) this.currentTheme.set(savedTheme);
+    }
+
     effect(() => {
       const activeNote = this.store.activeNote();
       if (activeNote) {
@@ -176,6 +274,15 @@ export class MainLayoutComponent implements OnDestroy {
     this.editorView?.destroy();
   }
 
+  setTheme(theme: 'theme-default' | 'theme-dark' | 'theme-cream'): void {
+    this.currentTheme.set(theme);
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.setItem('app-theme', theme);
+      const note = this.store.activeNote();
+      if (note) this.updatePreview(note.content);
+    }
+  }
+
   private initCodeMirror(): void {
     if (!this._editorContainer) return;
     const activeNote = this.store.activeNote();
@@ -192,6 +299,8 @@ export class MainLayoutComponent implements OnDestroy {
         markdown({ base: markdownLanguage, codeLanguages: languages }),
         customTheme,
         syntaxHighlighting(inkdropHighlightStyle),
+        dollarPlugin,
+        codeMetaPlugin,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             this.handleEditorChange(update.state.doc.toString());
@@ -213,9 +322,10 @@ export class MainLayoutComponent implements OnDestroy {
 
     setTimeout(() => {
       try {
+        const mTheme = this.currentTheme() === 'theme-dark' ? 'dark' : 'default';
+        mermaid.initialize({ startOnLoad: false, theme: mTheme });
         mermaid.run({ querySelector: '.mermaid', suppressErrors: true });
-      } catch (error) {
-      }
+      } catch (error) {}
     }, 50);
   }
 
@@ -263,7 +373,6 @@ export class MainLayoutComponent implements OnDestroy {
   handleInputTagConfirm(): void {
     const inputValue = this.inputTagValue().trim();
     const note = this.store.activeNote();
-
     if (inputValue && note) {
       const currentTags = note.tags || [];
       if (!currentTags.includes(inputValue)) {
@@ -276,36 +385,26 @@ export class MainLayoutComponent implements OnDestroy {
 
   onPreviewClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
-
     if (target.tagName.toLowerCase() === 'input' && (target as HTMLInputElement).type === 'checkbox') {
       event.preventDefault();
-
       const checkboxes = Array.from(document.querySelectorAll('.preview-content input[type="checkbox"]'));
       const index = checkboxes.indexOf(target as HTMLInputElement);
-
       if (index === -1) return;
-
       const currentNote = this.store.activeNote();
       if (!currentNote) return;
-
       const content = currentNote.content;
       let matchCount = 0;
-
       const regex = /(```[\s\S]*?```)|(^([ \t]*(?:[-*+]|\d+\.)\s+)\[([ xX])\])/gm;
-
       const newContent = content.replace(regex, (match, codeBlock, _, prefix, checkState) => {
         if (codeBlock) return match;
-
         if (matchCount === index) {
           matchCount++;
           const newState = (checkState === ' ' ? 'x' : ' ');
           return `${prefix}[${newState}]`;
         }
-
         matchCount++;
         return match;
       });
-
       if (newContent !== content) {
         this.store.updateNoteContent(currentNote.id, newContent, currentNote.title);
       }
@@ -314,33 +413,19 @@ export class MainLayoutComponent implements OnDestroy {
 
   createNewFolder(): void {
     const now = Date.now();
-    const newFolder: Folder = {
-      id: crypto.randomUUID(),
-      name: 'New Folder',
-      createdAt: now
-    };
+    const newFolder: Folder = { id: crypto.randomUUID(), name: 'New Folder', createdAt: now };
     this.store.addFolder(newFolder);
-
-    this.expandedFolders.update(set => {
-      const newSet = new Set(set);
-      newSet.add(newFolder.id);
-      return newSet;
-    });
-
+    this.expandedFolders.update(set => { const newSet = new Set(set); newSet.add(newFolder.id); return newSet; });
     setTimeout(() => this.startEditFolder(new Event('click'), newFolder), 100);
   }
 
   toggleFolder(folderId: string, event?: Event): void {
     if (event) event.stopPropagation();
     this.store.setActiveFolderId(folderId);
-
     this.expandedFolders.update(set => {
       const newSet = new Set(set);
-      if (newSet.has(folderId)) {
-        newSet.delete(folderId);
-      } else {
-        newSet.add(folderId);
-      }
+      if (newSet.has(folderId)) newSet.delete(folderId);
+      else newSet.add(folderId);
       return newSet;
     });
   }
@@ -355,20 +440,13 @@ export class MainLayoutComponent implements OnDestroy {
     this.editFolderText.set(folder.name === 'New Folder' ? '' : folder.name);
     setTimeout(() => {
       const input = document.querySelector('.edit-folder-input') as HTMLInputElement;
-      if (input) {
-        input.focus();
-        input.select();
-      }
+      if (input) { input.focus(); input.select(); }
     }, 0);
   }
 
   saveFolder(folder: Folder, event?: Event): void {
-    if (event) {
-      event.stopPropagation();
-      event.preventDefault();
-    }
+    if (event) { event.stopPropagation(); event.preventDefault(); }
     if (this.editingFolderId() !== folder.id) return;
-
     const newName = this.editFolderText().trim() || 'New Folder';
     this.editingFolderId.set(null);
     if (newName === folder.name) return;
@@ -385,49 +463,30 @@ export class MainLayoutComponent implements OnDestroy {
   createNewNote(targetFolderId?: string | null): void {
     const now = Date.now();
     const folderId = targetFolderId !== undefined ? targetFolderId : this.store.activeFolderId();
-
     const newNote: Note = {
-      id: crypto.randomUUID(),
-      title: 'Untitled Note',
-      content: '',
-      folderId: folderId,
-      createdAt: now,
-      updatedAt: now,
+      id: crypto.randomUUID(), title: 'Untitled Note', content: '',
+      folderId: folderId, createdAt: now, updatedAt: now,
     };
     this.store.addNote(newNote);
-
     if (folderId) {
-      this.expandedFolders.update(set => {
-        const newSet = new Set(set);
-        newSet.add(folderId);
-        return newSet;
-      });
+      this.expandedFolders.update(set => { const newSet = new Set(set); newSet.add(folderId); return newSet; });
     }
   }
 
   startEditTitle(event: Event, note: Note): void {
     event.stopPropagation();
-    if (this.store.activeNoteId() !== note.id) {
-      this.store.setActiveNoteId(note.id);
-    }
+    if (this.store.activeNoteId() !== note.id) { this.store.setActiveNoteId(note.id); }
     this.editingTitleId.set(note.id);
     this.editTitleText.set(note.title === 'Untitled Note' ? '' : note.title);
     setTimeout(() => {
       const input = document.querySelector('.edit-title-input') as HTMLInputElement;
-      if (input) {
-        input.focus();
-        input.select();
-      }
+      if (input) { input.focus(); input.select(); }
     }, 0);
   }
 
   saveTitle(note: Note, event?: Event): void {
-    if (event) {
-      event.stopPropagation();
-      event.preventDefault();
-    }
+    if (event) { event.stopPropagation(); event.preventDefault(); }
     if (this.editingTitleId() !== note.id) return;
-
     const newTitle = this.editTitleText().trim() || 'Untitled Note';
     this.editingTitleId.set(null);
     if (newTitle === note.title) return;
@@ -453,22 +512,15 @@ export class MainLayoutComponent implements OnDestroy {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.md, text/markdown, text/plain';
-
     input.onchange = async (e: Event) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-
       const content = await file.text();
       const title = file.name.replace(/\.[^/.]+$/, "");
       const now = Date.now();
-
       const newNote: Note = {
-        id: crypto.randomUUID(),
-        title: title || 'Untitled Note',
-        content: content,
-        folderId: this.store.activeFolderId(),
-        createdAt: now,
-        updatedAt: now,
+        id: crypto.randomUUID(), title: title || 'Untitled Note', content: content,
+        folderId: this.store.activeFolderId(), createdAt: now, updatedAt: now,
       };
       this.store.addNote(newNote);
     };
@@ -477,20 +529,13 @@ export class MainLayoutComponent implements OnDestroy {
 
   exportFile(): void {
     const currentNote = this.store.activeNote();
-    if (!currentNote) {
-      alert('Vui lòng mở một ghi chú để xuất file!');
-      return;
-    }
-
+    if (!currentNote) return alert('Vui lòng mở một ghi chú để xuất file!');
     const blob = new Blob([currentNote.content], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `${currentNote.title || 'Untitled Note'}.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
   }
 
   async openFolder(): Promise<void> {
@@ -498,19 +543,11 @@ export class MainLayoutComponent implements OnDestroy {
     input.type = 'file';
     input.webkitdirectory = true;
     input.multiple = true;
-
     input.onchange = async (e: Event) => {
       const files = (e.target as HTMLInputElement).files;
       if (!files || files.length === 0) return;
-
-      const rootPath = files[0].webkitRelativePath;
-      const folderName = rootPath.split('/')[0] || 'Imported Folder';
-
-      const newFolder: Folder = {
-        id: crypto.randomUUID(),
-        name: folderName,
-        createdAt: Date.now()
-      };
+      const folderName = files[0].webkitRelativePath.split('/')[0] || 'Imported Folder';
+      const newFolder: Folder = { id: crypto.randomUUID(), name: folderName, createdAt: Date.now() };
       this.store.addFolder(newFolder);
 
       for (let i = 0; i < files.length; i++) {
@@ -518,56 +555,34 @@ export class MainLayoutComponent implements OnDestroy {
         if (file.name.endsWith('.md') || file.name.endsWith('.txt')) {
           const content = await file.text();
           const title = file.name.replace(/\.[^/.]+$/, "");
-
           const newNote: Note = {
-            id: crypto.randomUUID(),
-            title: title || 'Untitled Note',
-            content: content,
-            folderId: newFolder.id,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
+            id: crypto.randomUUID(), title: title || 'Untitled Note', content: content,
+            folderId: newFolder.id, createdAt: Date.now(), updatedAt: Date.now(),
           };
           this.store.addNote(newNote);
         }
       }
-
-      this.expandedFolders.update(set => {
-        const newSet = new Set(set);
-        newSet.add(newFolder.id);
-        return newSet;
-      });
+      this.expandedFolders.update(set => { const newSet = new Set(set); newSet.add(newFolder.id); return newSet; });
       this.store.setActiveFolderId(newFolder.id);
     };
-
     input.click();
   }
 
   async exportFolder(folder: Folder, event: Event): Promise<void> {
     event.stopPropagation();
-
     const notesInFolder = this.store.notes().filter(n => n.folderId === folder.id);
-    if (notesInFolder.length === 0) {
-      alert('Thư mục này đang trống, không có gì để xuất!');
-      return;
-    }
+    if (notesInFolder.length === 0) return alert('Thư mục này đang trống, không có gì để xuất!');
 
     const zip = new JSZip();
-
     notesInFolder.forEach(note => {
       const safeTitle = (note.title || 'Untitled Note').replace(/[\\/:*?"<>|]/g, '');
       zip.file(`${safeTitle}.md`, note.content);
     });
-
     const blob = await zip.generateAsync({ type: 'blob' });
     const url = URL.createObjectURL(blob);
-
     const a = document.createElement('a');
     a.href = url;
     a.download = `${folder.name}.zip`;
-    document.body.appendChild(a);
-    a.click();
-
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
   }
 }

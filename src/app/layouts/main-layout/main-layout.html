@@ -1,4 +1,4 @@
-<div class="app-container">
+<div class="app-container" [ngClass]="currentTheme()">
   <div class="menu-bar">
     <div class="menu-item" nz-dropdown [nzDropdownMenu]="fileMenu" nzTrigger="click">File</div>
     <nz-dropdown-menu #fileMenu="nzDropdownMenu">
@@ -13,8 +13,18 @@
       </ul>
     </nz-dropdown-menu>
 
-    <div class="menu-item">Edit</div>
-    <div class="menu-item">View</div>
+    <div class="menu-item" nz-dropdown [nzDropdownMenu]="viewMenu" nzTrigger="click">View</div>
+    <nz-dropdown-menu #viewMenu="nzDropdownMenu">
+      <ul nz-menu>
+        <li nz-menu-item (click)="setTheme('theme-default')">
+          <span nz-icon nzType="check" [style.visibility]="currentTheme() === 'theme-default' ? 'visible' : 'hidden'"></span> Giao diện Trắng (Mặc định)
+        </li>
+        <li nz-menu-item (click)="setTheme('theme-cream')">
+          <span nz-icon nzType="check" [style.visibility]="currentTheme() === 'theme-cream' ? 'visible' : 'hidden'"></span> Giao diện Kem (Bảo vệ mắt)
+        </li>
+      </ul>
+    </nz-dropdown-menu>
+
     <div class="menu-item">Help</div>
   </div>
 
@@ -29,22 +39,27 @@
           <span nz-icon nzType="folder-add"></span>
         </button>
       </div>
-      
-      <!-- THANH TÌM KIẾM ĐÃ SỬA -->
-      <!-- THANH TÌM KIẾM SỬ DỤNG CÚ PHÁP VIẾT TẮT -->
+
       <div class="sidebar-search">
         <nz-input-group nzPrefixIcon="search">
           <input type="text" nz-input placeholder="Tìm kiếm ghi chú..." [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" />
         </nz-input-group>
+
+        <!-- THÊM BỘ LỌC THEO THẺ VÀO ĐÂY -->
+        <nz-select nzAllowClear nzPlaceHolder="Lọc theo thẻ (Tag)" [ngModel]="selectedTag()" (ngModelChange)="selectedTag.set($event)" class="tag-filter">
+          @for (tag of allTags(); track tag) {
+            <nz-option [nzValue]="tag" [nzLabel]="tag"></nz-option>
+          }
+        </nz-select>
       </div>
 
       <div class="sidebar-content">
-
         @for (folder of foldersWithNotes(); track folder.id) {
           <div class="folder-group">
+            <!-- TỰ ĐỘNG MỞ FOLDER KHI LỌC TAG -->
             <div class="folder-header" [class.active]="store.activeFolderId() === folder.id" (click)="toggleFolder(folder.id, $event)">
               <div class="folder-title-wrapper">
-                <span nz-icon [nzType]="(isExpanded(folder.id) || searchQuery()) ? 'folder-open' : 'folder'" nzTheme="outline"></span>
+                <span nz-icon [nzType]="(isExpanded(folder.id) || searchQuery() || selectedTag()) ? 'folder-open' : 'folder'" nzTheme="outline"></span>
                 @if (editingFolderId() === folder.id) {
                   <input type="text" class="edit-folder-input" [ngModel]="editFolderText()" (ngModelChange)="editFolderText.set($event)" (blur)="saveFolder(folder)" (keydown.enter)="saveFolder(folder, $event)" (click)="$event.stopPropagation()" />
                 } @else {
@@ -68,7 +83,7 @@
               </div>
             </div>
 
-            @if (isExpanded(folder.id) || searchQuery()) {
+            @if (isExpanded(folder.id) || searchQuery() || selectedTag()) {
               <ul class="custom-note-list">
                 @if (folder.notes.length === 0) {
                   <li class="empty-folder-text">Folder is empty</li>
@@ -122,14 +137,12 @@
             </ul>
           </div>
         }
-
       </div>
     </nz-sider>
 
     <nz-layout>
       <nz-content class="workspace">
         @if (store.activeNote(); as activeNote) {
-
           <div class="editor-header">
             <div class="editor-toolbar">
               <div class="title-group">
