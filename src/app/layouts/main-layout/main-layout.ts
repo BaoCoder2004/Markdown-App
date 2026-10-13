@@ -12,7 +12,7 @@ import {
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser'; 
 
 // NG-ZORRO
 import { NzLayoutModule } from 'ng-zorro-antd/layout';
@@ -21,6 +21,8 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzTooltipModule } from 'ng-zorro-antd/tooltip';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzDropdownModule } from 'ng-zorro-antd/dropdown';
+import { NzTagModule } from 'ng-zorro-antd/tag';
+import { NzInputModule } from 'ng-zorro-antd/input'; 
 
 // CodeMirror
 import { EditorState } from '@codemirror/state';
@@ -31,14 +33,16 @@ import { languages } from '@codemirror/language-data';
 import { HighlightStyle, syntaxHighlighting, foldGutter } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
 
-// JSZip để nén Folder
+// JSZip
 import JSZip from 'jszip';
 
-// Marked
-import { parse } from 'marked';
+// Markdown Parsers
+import { Marked } from 'marked';
+import markedKatex from 'marked-katex-extension';
+import mermaid from 'mermaid'
 
 import { NoteStore } from '../../core/stores/note.store';
-import { Note } from '../../core/models/note.model';
+import { Note, NoteStatus } from '../../core/models/note.model';
 import { Folder } from '../../core/models/folder.model';
 
 const customTheme = EditorView.theme({
@@ -64,10 +68,29 @@ const inkdropHighlightStyle = HighlightStyle.define([
   { tag: t.squareBracket,color: '#1890ff' }
 ]);
 
+const markedInstance = new Marked({ gfm: true });
+markedInstance.use(markedKatex({ throwOnError: false }));
+
+markedInstance.use({
+  renderer: {
+    code(token: any) {
+      if (token.lang === 'mermaid') {
+        return `<div class="mermaid">${token.text}</div>`;
+      }
+      return false;
+    }
+  }
+});
+
+mermaid.initialize({ startOnLoad: false, theme: 'default' });
+
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, FormsModule, NzLayoutModule, NzMenuModule, NzIconModule, NzTooltipModule, NzButtonModule, NzDropdownModule],
+  imports: [
+    CommonModule, FormsModule, NzLayoutModule, NzMenuModule, NzIconModule,
+    NzTooltipModule, NzButtonModule, NzDropdownModule, NzTagModule, NzInputModule 
+  ],
   templateUrl: './main-layout.html',
   styleUrls: ['./main-layout.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -87,14 +110,31 @@ export class MainLayoutComponent implements OnDestroy {
   editingFolderId = signal<string | null>(null);
   editFolderText = signal<string>('');
 
+  inputTagVisible = signal(false);
+  inputTagValue = signal('');
+  
+  searchQuery = signal('');
+
   foldersWithNotes = computed(() => {
-    return this.store.folders().map(folder => ({
-      ...folder,
-      notes: this.store.notes().filter(n => n.folderId === folder.id)
-    }));
+    const query = this.searchQuery().toLowerCase();
+    
+    return this.store.folders().map(folder => {
+      const notes = this.store.notes().filter(n => 
+        n.folderId === folder.id && 
+        (!query || n.title.toLowerCase().includes(query) || n.content.toLowerCase().includes(query))
+      );
+      return { ...folder, notes };
+    })
+    .filter(folder => !query || folder.notes.length > 0); 
   });
 
-  rootNotes = computed(() => this.store.notes().filter(n => n.folderId === null));
+  rootNotes = computed(() => {
+    const query = this.searchQuery().toLowerCase();
+    return this.store.notes().filter(n => 
+      n.folderId === null && 
+      (!query || n.title.toLowerCase().includes(query) || n.content.toLowerCase().includes(query))
+    );
+  });
 
   private editorView?: EditorView;
   private _editorContainer?: ElementRef;
@@ -110,6 +150,8 @@ export class MainLayoutComponent implements OnDestroy {
       this.editorView = undefined;
     }
   }
+
+  @ViewChild('tagInput') tagInputElement?: ElementRef;
 
   constructor() {
     effect(() => {
@@ -165,8 +207,16 @@ export class MainLayoutComponent implements OnDestroy {
   }
 
   private async updatePreview(rawMarkdown: string): Promise<void> {
-    const html = await parse(rawMarkdown, { gfm: true });
-    this.parsedContent.set(this.sanitizer.bypassSecurityTrustHtml(html));
+    const html = await markedInstance.parse(rawMarkdown);
+    const clickableHtml = html.replace(/<input([^>]*?)disabled(?:="")?([^>]*?)>/g, '<input$1$2>');
+    this.parsedContent.set(this.sanitizer.bypassSecurityTrustHtml(clickableHtml));
+
+    setTimeout(() => {
+      try {
+        mermaid.run({ querySelector: '.mermaid', suppressErrors: true });
+      } catch (error) {
+      }
+    }, 50);
   }
 
   handleEditorChange(newContent: string): void {
@@ -179,7 +229,89 @@ export class MainLayoutComponent implements OnDestroy {
     this.viewMode.set(mode);
   }
 
-  // --- LOGIC FOLDER ---
+  getStatusLabel(status?: NoteStatus): string {
+    const labels: Record<string, string> = {
+      'none': 'None',
+      'active': 'Active',
+      'on-hold': 'On Hold',
+      'completed': 'Completed',
+      'dropped': 'Dropped'
+    };
+    return labels[status || 'none'];
+  }
+
+  updateStatus(status: NoteStatus): void {
+    const note = this.store.activeNote();
+    if (note) this.store.updateNoteMeta(note.id, { status });
+  }
+
+  removeTag(tagToRemove: string): void {
+    const note = this.store.activeNote();
+    if (note) {
+      const currentTags = note.tags || [];
+      this.store.updateNoteMeta(note.id, { tags: currentTags.filter(t => t !== tagToRemove) });
+    }
+  }
+
+  showTagInput(): void {
+    this.inputTagVisible.set(true);
+    setTimeout(() => {
+      this.tagInputElement?.nativeElement.focus();
+    }, 10);
+  }
+
+  handleInputTagConfirm(): void {
+    const inputValue = this.inputTagValue().trim();
+    const note = this.store.activeNote();
+
+    if (inputValue && note) {
+      const currentTags = note.tags || [];
+      if (!currentTags.includes(inputValue)) {
+        this.store.updateNoteMeta(note.id, { tags: [...currentTags, inputValue] });
+      }
+    }
+    this.inputTagValue.set('');
+    this.inputTagVisible.set(false);
+  }
+
+  onPreviewClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+
+    if (target.tagName.toLowerCase() === 'input' && (target as HTMLInputElement).type === 'checkbox') {
+      event.preventDefault();
+
+      const checkboxes = Array.from(document.querySelectorAll('.preview-content input[type="checkbox"]'));
+      const index = checkboxes.indexOf(target as HTMLInputElement);
+
+      if (index === -1) return;
+
+      const currentNote = this.store.activeNote();
+      if (!currentNote) return;
+
+      const content = currentNote.content;
+      let matchCount = 0;
+
+      const regex = /(```[\s\S]*?```)|(^([ \t]*(?:[-*+]|\d+\.)\s+)\[([ xX])\])/gm;
+
+      const newContent = content.replace(regex, (match, codeBlock, _, prefix, checkState) => {
+        if (codeBlock) return match;
+
+        if (matchCount === index) {
+          matchCount++;
+          const newState = (checkState === ' ' ? 'x' : ' ');
+          return `${prefix}[${newState}]`;
+        }
+
+        matchCount++;
+        return match;
+      });
+
+      if (newContent !== content) {
+        this.store.updateNoteContent(currentNote.id, newContent, currentNote.title);
+      }
+    }
+  }
+
   createNewFolder(): void {
     const now = Date.now();
     const newFolder: Folder = {
@@ -250,7 +382,6 @@ export class MainLayoutComponent implements OnDestroy {
     }
   }
 
-  // --- LOGIC NOTE ---
   createNewNote(targetFolderId?: string | null): void {
     const now = Date.now();
     const folderId = targetFolderId !== undefined ? targetFolderId : this.store.activeFolderId();
@@ -318,7 +449,6 @@ export class MainLayoutComponent implements OnDestroy {
     return plainText.length > 40 ? `${plainText.substring(0, 40)}...` : plainText;
   }
 
-  // --- LOGIC FILE & FOLDER IMPORT/EXPORT ---
   async openFile(): Promise<void> {
     const input = document.createElement('input');
     input.type = 'file';
@@ -366,7 +496,6 @@ export class MainLayoutComponent implements OnDestroy {
   async openFolder(): Promise<void> {
     const input = document.createElement('input');
     input.type = 'file';
-    // Bật thuộc tính webkitdirectory để trình duyệt cho phép chọn Folder thay vì File
     input.webkitdirectory = true;
     input.multiple = true;
 
@@ -374,11 +503,9 @@ export class MainLayoutComponent implements OnDestroy {
       const files = (e.target as HTMLInputElement).files;
       if (!files || files.length === 0) return;
 
-      // Lấy tên thư mục gốc từ đường dẫn của file đầu tiên
       const rootPath = files[0].webkitRelativePath;
       const folderName = rootPath.split('/')[0] || 'Imported Folder';
 
-      // 1. Tạo Folder mới trong app
       const newFolder: Folder = {
         id: crypto.randomUUID(),
         name: folderName,
@@ -386,7 +513,6 @@ export class MainLayoutComponent implements OnDestroy {
       };
       this.store.addFolder(newFolder);
 
-      // 2. Lặp qua tất cả các file trong thư mục, chỉ lọc lấy file markdown/text
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         if (file.name.endsWith('.md') || file.name.endsWith('.txt')) {
@@ -405,7 +531,6 @@ export class MainLayoutComponent implements OnDestroy {
         }
       }
 
-      // Mở folder vừa import
       this.expandedFolders.update(set => {
         const newSet = new Set(set);
         newSet.add(newFolder.id);
@@ -420,7 +545,6 @@ export class MainLayoutComponent implements OnDestroy {
   async exportFolder(folder: Folder, event: Event): Promise<void> {
     event.stopPropagation();
 
-    // Lấy toàn bộ notes nằm trong folder này
     const notesInFolder = this.store.notes().filter(n => n.folderId === folder.id);
     if (notesInFolder.length === 0) {
       alert('Thư mục này đang trống, không có gì để xuất!');
@@ -429,14 +553,11 @@ export class MainLayoutComponent implements OnDestroy {
 
     const zip = new JSZip();
 
-    // Nén từng file vào zip
     notesInFolder.forEach(note => {
-      // Làm sạch tên file để tránh các ký tự đặc biệt gây lỗi hệ điều hành
       const safeTitle = (note.title || 'Untitled Note').replace(/[\\/:*?"<>|]/g, '');
       zip.file(`${safeTitle}.md`, note.content);
     });
 
-    // Tạo file zip tải về
     const blob = await zip.generateAsync({ type: 'blob' });
     const url = URL.createObjectURL(blob);
 

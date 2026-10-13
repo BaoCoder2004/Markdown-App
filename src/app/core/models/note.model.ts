@@ -1,3 +1,5 @@
+export type NoteStatus = 'none' | 'active' | 'on-hold' | 'completed' | 'dropped';
+
 export interface Note {
   id: string;
   title: string;
@@ -5,10 +7,6 @@ export interface Note {
   folderId: string | null;
   createdAt: number;
   updatedAt: number;
-}
-
-export interface NoteState {
-  notes: Note[];
-  activeNoteId: string | null;
-  isLoading: boolean;
+  status?: NoteStatus;
+  tags?: string[];
 }

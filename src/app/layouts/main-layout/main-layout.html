@@ -29,6 +29,14 @@
           <span nz-icon nzType="folder-add"></span>
         </button>
       </div>
+      
+      <!-- THANH TÌM KIẾM ĐÃ SỬA -->
+      <!-- THANH TÌM KIẾM SỬ DỤNG CÚ PHÁP VIẾT TẮT -->
+      <div class="sidebar-search">
+        <nz-input-group nzPrefixIcon="search">
+          <input type="text" nz-input placeholder="Tìm kiếm ghi chú..." [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" />
+        </nz-input-group>
+      </div>
 
       <div class="sidebar-content">
 
@@ -36,7 +44,7 @@
           <div class="folder-group">
             <div class="folder-header" [class.active]="store.activeFolderId() === folder.id" (click)="toggleFolder(folder.id, $event)">
               <div class="folder-title-wrapper">
-                <span nz-icon [nzType]="isExpanded(folder.id) ? 'folder-open' : 'folder'" nzTheme="outline"></span>
+                <span nz-icon [nzType]="(isExpanded(folder.id) || searchQuery()) ? 'folder-open' : 'folder'" nzTheme="outline"></span>
                 @if (editingFolderId() === folder.id) {
                   <input type="text" class="edit-folder-input" [ngModel]="editFolderText()" (ngModelChange)="editFolderText.set($event)" (blur)="saveFolder(folder)" (keydown.enter)="saveFolder(folder, $event)" (click)="$event.stopPropagation()" />
                 } @else {
@@ -60,7 +68,7 @@
               </div>
             </div>
 
-            @if (isExpanded(folder.id)) {
+            @if (isExpanded(folder.id) || searchQuery()) {
               <ul class="custom-note-list">
                 @if (folder.notes.length === 0) {
                   <li class="empty-folder-text">Folder is empty</li>
@@ -121,14 +129,51 @@
     <nz-layout>
       <nz-content class="workspace">
         @if (store.activeNote(); as activeNote) {
-          <div class="editor-toolbar">
-            <div class="title-group">
-              <span class="current-note-title">{{ activeNote.title }}</span>
+
+          <div class="editor-header">
+            <div class="editor-toolbar">
+              <div class="title-group">
+                <span class="current-note-title">{{ activeNote.title }}</span>
+              </div>
+              <div class="view-toggles">
+                 <button nz-button [nzType]="viewMode() === 'edit' ? 'primary' : 'default'" nzSize="small" (click)="setViewMode('edit')"><span nz-icon nzType="edit"></span></button>
+                 <button nz-button [nzType]="viewMode() === 'split' ? 'primary' : 'default'" nzSize="small" (click)="setViewMode('split')"><span nz-icon nzType="read"></span></button>
+                 <button nz-button [nzType]="viewMode() === 'preview' ? 'primary' : 'default'" nzSize="small" (click)="setViewMode('preview')"><span nz-icon nzType="eye"></span></button>
+              </div>
             </div>
-            <div class="view-toggles">
-               <button nz-button [nzType]="viewMode() === 'edit' ? 'primary' : 'default'" nzSize="small" (click)="setViewMode('edit')"><span nz-icon nzType="edit"></span></button>
-               <button nz-button [nzType]="viewMode() === 'split' ? 'primary' : 'default'" nzSize="small" (click)="setViewMode('split')"><span nz-icon nzType="read"></span></button>
-               <button nz-button [nzType]="viewMode() === 'preview' ? 'primary' : 'default'" nzSize="small" (click)="setViewMode('preview')"><span nz-icon nzType="eye"></span></button>
+
+            <div class="meta-toolbar">
+              <a nz-dropdown [nzDropdownMenu]="statusMenu" class="status-selector" nzTrigger="click">
+                <span class="status-dot" [ngClass]="activeNote.status || 'none'"></span>
+                {{ getStatusLabel(activeNote.status) }}
+                <span nz-icon nzType="down"></span>
+              </a>
+              <nz-dropdown-menu #statusMenu="nzDropdownMenu">
+                <ul nz-menu class="status-menu">
+                  <li nz-menu-item (click)="updateStatus('none')"><span class="status-dot none"></span> None</li>
+                  <li nz-menu-item (click)="updateStatus('active')"><span class="status-dot active"></span> Active</li>
+                  <li nz-menu-item (click)="updateStatus('on-hold')"><span class="status-dot on-hold"></span> On Hold</li>
+                  <li nz-menu-item (click)="updateStatus('completed')"><span class="status-dot completed"></span> Completed</li>
+                  <li nz-menu-item (click)="updateStatus('dropped')"><span class="status-dot dropped"></span> Dropped</li>
+                </ul>
+              </nz-dropdown-menu>
+
+              <div class="tags-container">
+                @for (tag of (activeNote.tags || []); track tag) {
+                  <nz-tag nzMode="closeable" (nzOnClose)="removeTag(tag)" class="custom-tag">{{ tag }}</nz-tag>
+                }
+
+                @if (inputTagVisible()) {
+                  <input type="text" nz-input nzSize="small" class="tag-input"
+                         [ngModel]="inputTagValue()" (ngModelChange)="inputTagValue.set($event)"
+                         (blur)="handleInputTagConfirm()" (keydown.enter)="handleInputTagConfirm()"
+                         #tagInput />
+                } @else {
+                  <nz-tag class="site-tag-plus" (click)="showTagInput()">
+                    <span nz-icon nzType="plus"></span> Add Tag
+                  </nz-tag>
+                }
+              </div>
             </div>
           </div>
 
@@ -137,7 +182,7 @@
               <div #editorContainer class="codemirror-wrapper"></div>
             </div>
             <div class="pane preview-pane">
-               <div class="preview-content" [innerHTML]="parsedContent()"></div>
+               <div class="preview-content" [innerHTML]="parsedContent()" (click)="onPreviewClick($event)"></div>
             </div>
           </div>
         } @else {

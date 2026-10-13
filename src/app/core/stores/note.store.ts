@@ -1,6 +1,6 @@
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
-import { Note } from '../models/note.model';
+import { Note, NoteStatus } from '../models/note.model';
 import { Folder } from '../models/folder.model';
 import { StorageService } from '../services/storage.service';
 
@@ -29,13 +29,11 @@ export const NoteStore = signalStore(
   withMethods((store, storage = inject(StorageService)) => ({
 
     async loadData() {
-      // Tải song song cả Notes và Folders từ IndexedDB
       const [dbNotes, dbFolders] = await Promise.all([
         storage.getAllNotes(),
         storage.getAllFolders()
       ]);
 
-      // Xử lý ghi chú cũ (chưa có thuộc tính folderId)
       const normalizedNotes = dbNotes.map(n => ({
         ...n,
         folderId: n.folderId !== undefined ? n.folderId : null
@@ -70,7 +68,6 @@ export const NoteStore = signalStore(
     },
 
     async deleteFolder(id: string) {
-      // Xóa folder và tất cả các note nằm trong folder đó
       const notesToDelete = store.notes().filter(n => n.folderId === id);
 
       patchState(store, (state) => ({
@@ -100,6 +97,17 @@ export const NoteStore = signalStore(
       patchState(store, (state) => ({
         notes: state.notes.map((n) =>
           n.id === id ? { ...n, content, title, updatedAt } : n
+        ),
+      }));
+      const updatedNote = store.notes().find(n => n.id === id);
+      if (updatedNote) await storage.saveNote(updatedNote);
+    },
+
+    async updateNoteMeta(id: string, updates: { status?: NoteStatus; tags?: string[] }) {
+      const updatedAt = Date.now();
+      patchState(store, (state) => ({
+        notes: state.notes.map((n) =>
+          n.id === id ? { ...n, ...updates, updatedAt } : n
         ),
       }));
       const updatedNote = store.notes().find(n => n.id === id);
