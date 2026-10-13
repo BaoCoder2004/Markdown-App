@@ -23,7 +23,8 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzDropdownModule } from 'ng-zorro-antd/dropdown';
 import { NzTagModule } from 'ng-zorro-antd/tag';
 import { NzInputModule } from 'ng-zorro-antd/input';
-import { NzSelectModule } from 'ng-zorro-antd/select'; // <-- Bổ sung Module Select
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
 
 // CodeMirror
 import { EditorState } from '@codemirror/state';
@@ -48,10 +49,13 @@ const customTheme = EditorView.theme({
   '&': { backgroundColor: 'transparent !important', color: 'var(--text-main) !important' },
   '.cm-content': { fontFamily: "'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", fontSize: '15px' },
   '.cm-gutters': { backgroundColor: 'transparent !important', color: 'var(--text-muted)', borderRight: 'none' },
-  '&.cm-focused .cm-cursor': { borderLeftColor: '#1890ff' },
+  '&.cm-focused .cm-cursor': { borderLeftColor: 'var(--text-main)' },
   '&.cm-focused .cm-selectionBackground, ::selection': { backgroundColor: 'var(--selection-bg) !important' },
-  '.cm-math-dollar': { color: '#2463EB !important', fontWeight: 'bold' },
-  '.cm-code-meta': { color: 'var(--hl-keyword) !important' }
+  '.cm-code-meta': { color: 'var(--hl-keyword) !important' },
+  '.cm-math-dollar': { color: 'var(--hl-dollar) !important', fontWeight: 'bold' },
+  '.cm-md-hash': { color: 'var(--hl-hash) !important', fontWeight: 'bold' },
+  '.cm-md-checkbox': { color: 'var(--hl-checkbox) !important', fontWeight: 'bold' },
+  '.cm-md-sublist': { color: 'var(--hl-sublist) !important', fontWeight: 'bold' }
 });
 
 const inkdropHighlightStyle = HighlightStyle.define([
@@ -79,25 +83,43 @@ const inkdropHighlightStyle = HighlightStyle.define([
 ]);
 
 const dollarDecorator = new MatchDecorator({
-  regexp: /\$/g,
-  decoration: Decoration.mark({ class: 'cm-math-dollar' })
+  regexp: /\$/g, decoration: Decoration.mark({ class: 'cm-math-dollar' })
 });
-
 const dollarPlugin = ViewPlugin.fromClass(class {
-  decorations: any;
-  constructor(view: EditorView) { this.decorations = dollarDecorator.createDeco(view); }
+  decorations: any; constructor(view: EditorView) { this.decorations = dollarDecorator.createDeco(view); }
   update(update: ViewUpdate) { this.decorations = dollarDecorator.updateDeco(update, this.decorations); }
 }, { decorations: v => v.decorations });
 
-const codeMetaDecorator = new MatchDecorator({
-  regexp: /(filename|title)="([^"]+)"/g,
-  decoration: Decoration.mark({ class: 'cm-code-meta' })
+const hashDecorator = new MatchDecorator({
+  regexp: /(^|\s)(#+)(?=\s)/g, decoration: Decoration.mark({ class: 'cm-md-hash' })
 });
+const hashPlugin = ViewPlugin.fromClass(class {
+  decorations: any; constructor(view: EditorView) { this.decorations = hashDecorator.createDeco(view); }
+  update(update: ViewUpdate) { this.decorations = hashDecorator.updateDeco(update, this.decorations); }
+}, { decorations: v => v.decorations });
 
+const checkboxDecorator = new MatchDecorator({
+  regexp: /\[[ \t]*[xX]?[ \t]*\]/g, decoration: Decoration.mark({ class: 'cm-md-checkbox' })
+});
+const checkboxPlugin = ViewPlugin.fromClass(class {
+  decorations: any; constructor(view: EditorView) { this.decorations = checkboxDecorator.createDeco(view); }
+  update(update: ViewUpdate) { this.decorations = checkboxDecorator.updateDeco(update, this.decorations); }
+}, { decorations: v => v.decorations });
+
+const codeMetaDecorator = new MatchDecorator({
+  regexp: /(filename|title)="([^"]+)"/g, decoration: Decoration.mark({ class: 'cm-code-meta' })
+});
 const codeMetaPlugin = ViewPlugin.fromClass(class {
-  decorations: any;
-  constructor(view: EditorView) { this.decorations = codeMetaDecorator.createDeco(view); }
+  decorations: any; constructor(view: EditorView) { this.decorations = codeMetaDecorator.createDeco(view); }
   update(update: ViewUpdate) { this.decorations = codeMetaDecorator.updateDeco(update, this.decorations); }
+}, { decorations: v => v.decorations });
+
+const sublistDecorator = new MatchDecorator({
+  regexp: /^[ \t]+[-*+]/gm, decoration: Decoration.mark({ class: 'cm-md-sublist' })
+});
+const sublistPlugin = ViewPlugin.fromClass(class {
+  decorations: any; constructor(view: EditorView) { this.decorations = sublistDecorator.createDeco(view); }
+  update(update: ViewUpdate) { this.decorations = sublistDecorator.updateDeco(update, this.decorations); }
 }, { decorations: v => v.decorations });
 
 const markedInstance = new Marked({ gfm: true });
@@ -163,7 +185,8 @@ mermaid.initialize({ startOnLoad: false, theme: 'default' });
   standalone: true,
   imports: [
     CommonModule, FormsModule, NzLayoutModule, NzMenuModule, NzIconModule,
-    NzTooltipModule, NzButtonModule, NzDropdownModule, NzTagModule, NzInputModule, NzSelectModule
+    NzTooltipModule, NzButtonModule, NzDropdownModule, NzTagModule, NzInputModule,
+    NzSelectModule, NzModalModule
   ],
   templateUrl: './main-layout.html',
   styleUrls: ['./main-layout.scss'],
@@ -173,6 +196,7 @@ export class MainLayoutComponent implements OnDestroy {
   protected readonly store = inject(NoteStore);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly platformId = inject(PLATFORM_ID);
+  private readonly modal = inject(NzModalService);
 
   parsedContent = signal<SafeHtml>('');
   viewMode = signal<'edit' | 'split' | 'preview'>('split');
@@ -189,9 +213,8 @@ export class MainLayoutComponent implements OnDestroy {
   inputTagValue = signal('');
 
   searchQuery = signal('');
-  selectedTag = signal<string | null>(null); // Trạng thái thẻ đang được chọn lọc
+  selectedTag = signal<string | null>(null);
 
-  // Lấy danh sách toàn bộ các Tag duy nhất hiện có trong hệ thống
   allTags = computed(() => {
     const tags = new Set<string>();
     this.store.notes().forEach(n => {
@@ -200,7 +223,6 @@ export class MainLayoutComponent implements OnDestroy {
     return Array.from(tags).sort();
   });
 
-  // Lọc thư mục theo cả từ khóa và Tag
   foldersWithNotes = computed(() => {
     const query = this.searchQuery().toLowerCase();
     const tagFilter = this.selectedTag();
@@ -217,7 +239,6 @@ export class MainLayoutComponent implements OnDestroy {
     .filter(folder => (!query && !tagFilter) || folder.notes.length > 0);
   });
 
-  // Lọc ghi chú mồ côi theo cả từ khóa và Tag
   rootNotes = computed(() => {
     const query = this.searchQuery().toLowerCase();
     const tagFilter = this.selectedTag();
@@ -249,7 +270,10 @@ export class MainLayoutComponent implements OnDestroy {
   constructor() {
     if (isPlatformBrowser(this.platformId)) {
       const savedTheme = localStorage.getItem('app-theme') as any;
-      if (savedTheme) this.currentTheme.set(savedTheme);
+      const initialTheme = savedTheme || 'theme-default';
+      this.currentTheme.set(initialTheme);
+      // Gán class Theme ra tận document.body để Modal có thể nhận diện được
+      document.body.classList.add(initialTheme);
     }
 
     effect(() => {
@@ -275,12 +299,32 @@ export class MainLayoutComponent implements OnDestroy {
   }
 
   setTheme(theme: 'theme-default' | 'theme-dark' | 'theme-cream'): void {
+    const oldTheme = this.currentTheme();
     this.currentTheme.set(theme);
     if (isPlatformBrowser(this.platformId)) {
       localStorage.setItem('app-theme', theme);
+      // Thay đổi class Theme trên body
+      document.body.classList.remove(oldTheme);
+      document.body.classList.add(theme);
+
       const note = this.store.activeNote();
       if (note) this.updatePreview(note.content);
     }
+  }
+
+  getRelativeTime(timestamp?: number): string {
+    if (!timestamp) return '';
+    const diffMs = timestamp - Date.now();
+    const diffMins = Math.round(diffMs / 60000);
+    const diffHours = Math.round(diffMs / 3600000);
+    const diffDays = Math.round(diffMs / 86400000);
+
+    const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+
+    if (Math.abs(diffMins) < 1) return 'Just now';
+    if (Math.abs(diffMins) < 60) return rtf.format(diffMins, 'minute');
+    if (Math.abs(diffHours) < 24) return rtf.format(diffHours, 'hour');
+    return rtf.format(diffDays, 'day');
   }
 
   private initCodeMirror(): void {
@@ -300,7 +344,10 @@ export class MainLayoutComponent implements OnDestroy {
         customTheme,
         syntaxHighlighting(inkdropHighlightStyle),
         dollarPlugin,
+        hashPlugin,
+        checkboxPlugin,
         codeMetaPlugin,
+        sublistPlugin,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             this.handleEditorChange(update.state.doc.toString());
@@ -356,11 +403,20 @@ export class MainLayoutComponent implements OnDestroy {
   }
 
   removeTag(tagToRemove: string): void {
-    const note = this.store.activeNote();
-    if (note) {
-      const currentTags = note.tags || [];
-      this.store.updateNoteMeta(note.id, { tags: currentTags.filter(t => t !== tagToRemove) });
-    }
+    this.modal.confirm({
+      nzTitle: 'Remove Tag?',
+      nzContent: `Are you sure you want to remove the tag "${tagToRemove}"?`,
+      nzOkText: 'Remove',
+      nzOkDanger: true,
+      nzCancelText: 'Cancel',
+      nzOnOk: () => {
+        const note = this.store.activeNote();
+        if (note) {
+          const currentTags = note.tags || [];
+          this.store.updateNoteMeta(note.id, { tags: currentTags.filter(t => t !== tagToRemove) });
+        }
+      }
+    });
   }
 
   showTagInput(): void {
@@ -455,9 +511,14 @@ export class MainLayoutComponent implements OnDestroy {
 
   deleteFolder(id: string, event: Event): void {
     event.stopPropagation();
-    if (confirm('Bạn có chắc chắn muốn xóa thư mục này? Mọi ghi chú bên trong cũng sẽ bị xóa vĩnh viễn!')) {
-      this.store.deleteFolder(id);
-    }
+    this.modal.confirm({
+      nzTitle: 'Delete Folder?',
+      nzContent: 'Are you sure you want to delete this folder? All notes inside will be permanently deleted!',
+      nzOkText: 'Delete',
+      nzOkDanger: true,
+      nzCancelText: 'Cancel',
+      nzOnOk: () => this.store.deleteFolder(id)
+    });
   }
 
   createNewNote(targetFolderId?: string | null): void {
@@ -499,7 +560,14 @@ export class MainLayoutComponent implements OnDestroy {
 
   deleteNote(id: string, event: Event): void {
     event.stopPropagation();
-    this.store.deleteNote(id);
+    this.modal.confirm({
+      nzTitle: 'Delete Note?',
+      nzContent: 'Are you sure you want to delete this note?',
+      nzOkText: 'Delete',
+      nzOkDanger: true,
+      nzCancelText: 'Cancel',
+      nzOnOk: () => this.store.deleteNote(id)
+    });
   }
 
   getSnippet(content: string): string {
@@ -529,7 +597,7 @@ export class MainLayoutComponent implements OnDestroy {
 
   exportFile(): void {
     const currentNote = this.store.activeNote();
-    if (!currentNote) return alert('Vui lòng mở một ghi chú để xuất file!');
+    if (!currentNote) return;
     const blob = new Blob([currentNote.content], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -571,7 +639,7 @@ export class MainLayoutComponent implements OnDestroy {
   async exportFolder(folder: Folder, event: Event): Promise<void> {
     event.stopPropagation();
     const notesInFolder = this.store.notes().filter(n => n.folderId === folder.id);
-    if (notesInFolder.length === 0) return alert('Thư mục này đang trống, không có gì để xuất!');
+    if (notesInFolder.length === 0) return;
 
     const zip = new JSZip();
     notesInFolder.forEach(note => {

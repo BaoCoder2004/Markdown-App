@@ -3,11 +3,11 @@
   height: 100vh;
 }
 
-.app-container {
-  /* =========================================
-     KHAI BÁO BẢNG MÀU THEME (CSS VARIABLES)
-     ========================================= */
-
+/* =========================================
+   KHAI BÁO BIẾN CSS RA TOÀN BỘ TRÌNH DUYỆT
+   ĐỂ MODAL NG-ZORRO NHẬN DIỆN ĐƯỢC
+   ========================================= */
+::ng-deep body {
   /* THEME TRẮNG (DEFAULT) */
   --bg-base: #F1EEED;
   --bg-sidebar: #EDEBE9;
@@ -21,7 +21,6 @@
   --text-muted: #8c8c8c;
   --selection-bg: #b3d8ff;
 
-  /* Màu Code & Syntax Highlight */
   --hl-heading: #e83e8c;
   --hl-strong: #222;
   --hl-em: #222;
@@ -41,10 +40,54 @@
   --hl-operator: #d73a49;
   --hl-function: #6f42c1;
 
+  --hl-dollar: #2463EB;
+  --hl-hash: #e83e8c;
+  --hl-checkbox: #1890ff;
+  --hl-sublist: #9E592C;
+
+  /* THEME TỐI CHUẨN INKDROP NORD THEO ẢNH CHỤP */
+  &.theme-dark {
+    --bg-base: #2E3440;
+    --bg-sidebar: #3B4252;
+    --bg-toolbar: #2E3440;
+    --bg-menu: #3B4252;
+    --bg-hover: #434C5E;
+    --bg-active: #4C566A;
+    --border-color: #434C5E;
+    --text-main: #D8DEE9;
+    --text-heading: #ECEFF4;
+    --text-muted: #6272A4;
+    --selection-bg: #434C5E;
+
+    --hl-heading: #88C0D0;
+    --hl-strong: #ECEFF4;
+    --hl-em: #E5E9F0;
+    --hl-del: #4C566A;
+    --hl-link: #81A1C1;
+    --hl-code: #B48EAD;
+    --bg-code: #3B4252;
+    --hl-comment: #6272A4;
+    --hl-meta: #5E81AC;
+    --hl-punct: #D8DEE9;
+
+    --hl-string: #A3BE8C;
+    --hl-keyword: #81A1C1;
+    --hl-number: #B48EAD;
+    --hl-property: #88C0D0;
+    --hl-bool: #81A1C1;
+    --hl-operator: #81A1C1;
+    --hl-function: #88C0D0;
+
+    --hl-dollar: #5E81AC;
+    --hl-hash: #81A1C1;
+    --hl-checkbox: #B48EAD;
+    --hl-sublist: #5E81AC;
+  }
+
   /* THEME KEM DỊU MẮT (CREAM) */
   &.theme-cream {
-    --bg-base: #F2EBBB;
-    --bg-sidebar: #F3EEC5;
+    --bg-base: #fffdd0;
+    --bg-sidebar: #f7f4b5;
     --bg-toolbar: #fcfad6;
     --bg-menu: #f2efaa;
     --bg-hover: #ebe89d;
@@ -64,9 +107,15 @@
     --hl-bool: #005cc5;
     --hl-operator: #d73a49;
     --hl-function: #6f42c1;
-  }
 
-  /* Kích hoạt chuyển đổi mượt mà */
+    --hl-dollar: #2463EB;
+    --hl-hash: #d73a49;
+    --hl-checkbox: #005cc5;
+    --hl-sublist: #9E592C;
+  }
+}
+
+.app-container {
   background-color: var(--bg-base);
   color: var(--text-main);
   transition: background-color 0.3s ease, color 0.3s ease;
@@ -136,6 +185,7 @@ nz-content { display: flex; flex-direction: column; height: 100%; }
     border-color: var(--border-color);
 
     input {
+      background-color: var(--bg-base);
       color: var(--text-main);
       &::placeholder { color: var(--text-muted); }
     }
@@ -146,6 +196,7 @@ nz-content { display: flex; flex-direction: column; height: 100%; }
     width: 100%;
     ::ng-deep .ant-select-selector {
       border-radius: 6px;
+      background-color: var(--bg-base);
       border-color: var(--border-color);
       color: var(--text-main);
     }
@@ -206,7 +257,30 @@ nz-content { display: flex; flex-direction: column; height: 100%; }
 
     .note-item-content { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
     .note-title { color: var(--text-main); font-weight: 500; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .note-snippet { color: var(--text-muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px; }
+
+    .note-meta-sidebar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+
+      .note-time {
+        color: var(--hl-keyword);
+        font-size: 11px;
+        flex-shrink: 0;
+        font-weight: 500;
+      }
+      .note-snippet {
+        color: var(--text-muted);
+        font-size: 11px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
 
     .edit-title-input {
       width: calc(100% - 8px); border: 1px solid #1890ff; border-radius: 4px;
@@ -218,11 +292,48 @@ nz-content { display: flex; flex-direction: column; height: 100%; }
   }
 }
 
-/* Override nút icon NG-ZORRO để đồng bộ màu theme */
 ::ng-deep .ant-btn-text {
   color: var(--text-main);
   &:hover { background-color: var(--bg-hover); }
   &[nzDanger] { color: #ff4d4f; }
+}
+
+/* =========================================
+   GIAO DIỆN MODAL (POP-UP XÁC NHẬN)
+   ========================================= */
+::ng-deep .ant-modal-content {
+  background-color: var(--bg-sidebar) !important;
+  color: var(--text-main) !important;
+  border-radius: 8px !important;
+}
+::ng-deep .ant-modal-header {
+  background-color: var(--bg-sidebar) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+::ng-deep .ant-modal-title {
+  color: var(--text-heading) !important;
+}
+::ng-deep .ant-modal-close-x {
+  color: var(--text-muted) !important;
+}
+
+::ng-deep .ant-modal-confirm-body .ant-modal-confirm-title {
+  color: var(--text-heading) !important;
+}
+::ng-deep .ant-modal-confirm-body .ant-modal-confirm-content {
+  color: var(--text-main) !important;
+}
+
+::ng-deep .ant-modal-confirm-btns .ant-btn-default {
+  background-color: var(--bg-base) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-main) !important;
+
+  &:hover {
+    background-color: var(--bg-hover) !important;
+    border-color: var(--text-muted) !important;
+    color: var(--text-heading) !important;
+  }
 }
 
 .workspace { display: flex; flex-direction: column; background: var(--bg-base); }
@@ -272,9 +383,6 @@ nz-content { display: flex; flex-direction: column; height: 100%; }
   ::ng-deep .cm-editor { height: 100%; width: 100%; max-width: 800px; padding: 0 24px; outline: none !important; }
 }
 
-/* =========================================
-   GIAO DIỆN HỘP CODE BÊN PREVIEW (MARKDOWN)
-   ========================================= */
 ::ng-deep .custom-code-block {
   border: 1px solid var(--border-color);
   border-radius: 6px;
@@ -331,6 +439,13 @@ nz-content { display: flex; flex-direction: column; height: 100%; }
     blockquote { border-left: 4px solid var(--border-color); padding-left: 16px; color: var(--text-muted); }
     li { margin-bottom: 4px; &:has(> input[type="checkbox"]), &.task-list-item { list-style-type: none !important; margin-left: -24px; } }
     input[type="checkbox"] { margin-right: 8px; cursor: pointer; accent-color: #1890ff; transform: scale(1.1); position: relative; top: 1px; }
+
+    ul ul li::marker,
+    ol ol li::marker,
+    ul ol li::marker,
+    ol ul li::marker {
+      color: var(--hl-sublist);
+    }
     ul.contains-task-list { padding-left: 24px; }
   }
 }

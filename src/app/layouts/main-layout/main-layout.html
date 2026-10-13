@@ -19,6 +19,9 @@
         <li nz-menu-item (click)="setTheme('theme-default')">
           <span nz-icon nzType="check" [style.visibility]="currentTheme() === 'theme-default' ? 'visible' : 'hidden'"></span> Giao diện Trắng (Mặc định)
         </li>
+        <li nz-menu-item (click)="setTheme('theme-dark')">
+          <span nz-icon nzType="check" [style.visibility]="currentTheme() === 'theme-dark' ? 'visible' : 'hidden'"></span> Giao diện Tối
+        </li>
         <li nz-menu-item (click)="setTheme('theme-cream')">
           <span nz-icon nzType="check" [style.visibility]="currentTheme() === 'theme-cream' ? 'visible' : 'hidden'"></span> Giao diện Kem (Bảo vệ mắt)
         </li>
@@ -42,11 +45,11 @@
 
       <div class="sidebar-search">
         <nz-input-group nzPrefixIcon="search">
-          <input type="text" nz-input placeholder="Tìm kiếm ghi chú..." [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" />
+          <input type="text" nz-input placeholder="Filter by note..." [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" />
         </nz-input-group>
 
-        <!-- THÊM BỘ LỌC THEO THẺ VÀO ĐÂY -->
-        <nz-select nzAllowClear nzPlaceHolder="Lọc theo thẻ (Tag)" [ngModel]="selectedTag()" (ngModelChange)="selectedTag.set($event)" class="tag-filter">
+        <!-- SỬA TIẾNG TRUNG BẰNG nzNotFoundContent -->
+        <nz-select nzAllowClear nzPlaceHolder="Filter by tag..." nzNotFoundContent="No tags found" [ngModel]="selectedTag()" (ngModelChange)="selectedTag.set($event)" class="tag-filter">
           @for (tag of allTags(); track tag) {
             <nz-option [nzValue]="tag" [nzLabel]="tag"></nz-option>
           }
@@ -56,7 +59,6 @@
       <div class="sidebar-content">
         @for (folder of foldersWithNotes(); track folder.id) {
           <div class="folder-group">
-            <!-- TỰ ĐỘNG MỞ FOLDER KHI LỌC TAG -->
             <div class="folder-header" [class.active]="store.activeFolderId() === folder.id" (click)="toggleFolder(folder.id, $event)">
               <div class="folder-title-wrapper">
                 <span nz-icon [nzType]="(isExpanded(folder.id) || searchQuery() || selectedTag()) ? 'folder-open' : 'folder'" nzTheme="outline"></span>
@@ -96,7 +98,13 @@
                       } @else {
                         <div class="note-title" [title]="note.title">{{ note.title || 'Untitled Note' }}</div>
                       }
-                      <div class="note-snippet">{{ getSnippet(note.content) }}</div>
+
+                      <!-- HIỂN THỊ THỜI GIAN THEO KIỂU INKDROP -->
+                      <div class="note-meta-sidebar">
+                        <span class="note-time">{{ getRelativeTime(note.updatedAt || note.createdAt) }}</span>
+                        <span class="note-snippet">{{ getSnippet(note.content) }}</span>
+                      </div>
+
                     </div>
                     <div class="note-actions">
                       <button nz-button nzType="text" nzSize="small" (click)="startEditTitle($event, note)"><span nz-icon nzType="edit"></span></button>
@@ -126,7 +134,13 @@
                     } @else {
                       <div class="note-title" [title]="note.title">{{ note.title || 'Untitled Note' }}</div>
                     }
-                    <div class="note-snippet">{{ getSnippet(note.content) }}</div>
+
+                    <!-- HIỂN THỊ THỜI GIAN MỒ CÔI -->
+                    <div class="note-meta-sidebar">
+                      <span class="note-time">{{ getRelativeTime(note.updatedAt || note.createdAt) }}</span>
+                      <span class="note-snippet">{{ getSnippet(note.content) }}</span>
+                    </div>
+
                   </div>
                   <div class="note-actions">
                     <button nz-button nzType="text" nzSize="small" (click)="startEditTitle($event, note)"><span nz-icon nzType="edit"></span></button>
