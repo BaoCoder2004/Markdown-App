@@ -1,4 +1,12 @@
-<div class="app-container" [ngClass]="currentTheme()">
+<div class="app-container" [ngClass]="currentTheme()" (click)="closeContextMenu()" (contextmenu)="closeContextMenu()">
+  @if (contextMenu(); as menu) {
+    <div class="item-context-menu" [style.left.px]="menu.x" [style.top.px]="menu.y" (click)="$event.stopPropagation()" (contextmenu)="$event.preventDefault(); $event.stopPropagation()">
+      <button type="button" class="item-context-menu-action" (click)="toggleContextItemPinned()">
+        <span nz-icon nzType="pushpin"></span>
+        {{ menu.pinned ? 'Unpin' : 'Pin' }} {{ menu.kind }}
+      </button>
+    </div>
+  }
   <div class="menu-bar">
     <div class="menu-item" nz-dropdown [nzDropdownMenu]="fileMenu" nzTrigger="click">File</div>
     <nz-dropdown-menu #fileMenu="nzDropdownMenu">
@@ -59,13 +67,16 @@
       <div class="sidebar-content">
         @for (folder of foldersWithNotes(); track folder.id) {
           <div class="folder-group">
-            <div class="folder-header" [class.active]="store.activeFolderId() === folder.id" (click)="toggleFolder(folder.id, $event)">
+            <div class="folder-header" [class.active]="store.activeFolderId() === folder.id" (click)="toggleFolder(folder.id, $event)" (contextmenu)="openItemContextMenu($event, 'folder', folder.id, !!folder.pinned)">
               <div class="folder-title-wrapper">
                 <span nz-icon [nzType]="(isExpanded(folder.id) || searchQuery() || selectedTag()) ? 'folder-open' : 'folder'" nzTheme="outline"></span>
                 @if (editingFolderId() === folder.id) {
                   <input type="text" class="edit-folder-input" [ngModel]="editFolderText()" (ngModelChange)="editFolderText.set($event)" (blur)="saveFolder(folder)" (keydown.enter)="saveFolder(folder, $event)" (click)="$event.stopPropagation()" />
                 } @else {
                   <span class="folder-name" [title]="folder.name">{{ folder.name }}</span>
+                  @if (folder.pinned) {
+                    <span nz-icon nzType="pushpin" class="pinned-indicator" nzTooltipTitle="Pinned"></span>
+                  }
                 }
               </div>
 
@@ -91,15 +102,17 @@
                   <li class="empty-folder-text">Folder is empty</li>
                 }
                 @for (note of folder.notes; track note.id) {
-                  <li class="custom-note-item indented" [class.active-note]="store.activeNoteId() === note.id" (click)="selectNote(note.id)">
+                  <li class="custom-note-item indented" [class.active-note]="store.activeNoteId() === note.id" (click)="selectNote(note.id)" (contextmenu)="openItemContextMenu($event, 'note', note.id, !!note.pinned)">
                     <div class="note-item-content">
                       @if (editingTitleId() === note.id) {
                         <input type="text" class="edit-title-input" [ngModel]="editTitleText()" (ngModelChange)="editTitleText.set($event)" (blur)="saveTitle(note)" (keydown.enter)="saveTitle(note, $event)" (click)="$event.stopPropagation()" />
                       } @else {
-                        <div class="note-title" [title]="note.title">{{ note.title || 'Untitled Note' }}</div>
+                        <div class="note-title" [title]="note.title">
+                          <span class="note-title-label">{{ note.title || 'Untitled Note' }}</span>
+                          @if (note.pinned) { <span nz-icon nzType="pushpin" class="pinned-indicator" nzTooltipTitle="Pinned"></span> }
+                        </div>
                       }
 
-                      <!-- HIỂN THỊ THỜI GIAN THEO KIỂU INKDROP -->
                       <div class="note-meta-sidebar">
                         <span class="note-time">{{ getRelativeTime(note.updatedAt || note.createdAt) }}</span>
                         <span class="note-snippet">{{ getSnippet(note.content) }}</span>
@@ -127,15 +140,17 @@
             </div>
             <ul class="custom-note-list">
               @for (note of rootNotes(); track note.id) {
-                <li class="custom-note-item" [class.active-note]="store.activeNoteId() === note.id" (click)="selectNote(note.id)">
+                <li class="custom-note-item" [class.active-note]="store.activeNoteId() === note.id" (click)="selectNote(note.id)" (contextmenu)="openItemContextMenu($event, 'note', note.id, !!note.pinned)">
                   <div class="note-item-content">
                     @if (editingTitleId() === note.id) {
                       <input type="text" class="edit-title-input" [ngModel]="editTitleText()" (ngModelChange)="editTitleText.set($event)" (blur)="saveTitle(note)" (keydown.enter)="saveTitle(note, $event)" (click)="$event.stopPropagation()" />
                     } @else {
-                      <div class="note-title" [title]="note.title">{{ note.title || 'Untitled Note' }}</div>
+                      <div class="note-title" [title]="note.title">
+                        <span class="note-title-label">{{ note.title || 'Untitled Note' }}</span>
+                        @if (note.pinned) { <span nz-icon nzType="pushpin" class="pinned-indicator" nzTooltipTitle="Pinned"></span> }
+                      </div>
                     }
 
-                    <!-- HIỂN THỊ THỜI GIAN MỒ CÔI -->
                     <div class="note-meta-sidebar">
                       <span class="note-time">{{ getRelativeTime(note.updatedAt || note.createdAt) }}</span>
                       <span class="note-snippet">{{ getSnippet(note.content) }}</span>
@@ -187,7 +202,12 @@
 
               <div class="tags-container">
                 @for (tag of (activeNote.tags || []); track tag) {
-                  <nz-tag nzMode="closeable" (nzOnClose)="removeTag(tag)" class="custom-tag">{{ tag }}</nz-tag>
+                  <nz-tag
+                    nzMode="closeable"
+                    (nzOnClose)="removeTag(tag)"
+                    class="custom-tag"
+                    [ngStyle]="getTagStyle(tag)"
+                  >{{ tag }}</nz-tag>
                 }
 
                 @if (inputTagVisible()) {

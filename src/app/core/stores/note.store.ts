@@ -67,6 +67,14 @@ export const NoteStore = signalStore(
       if (updatedFolder) await storage.saveFolder(updatedFolder);
     },
 
+    async setFolderPinned(id: string, pinned: boolean) {
+      patchState(store, (state) => ({
+        folders: state.folders.map(folder => folder.id === id ? { ...folder, pinned } : folder)
+      }));
+      const updatedFolder = store.folders().find(folder => folder.id === id);
+      if (updatedFolder) await storage.saveFolder(updatedFolder);
+    },
+
     async deleteFolder(id: string) {
       const notesToDelete = store.notes().filter(n => n.folderId === id);
 
@@ -103,7 +111,7 @@ export const NoteStore = signalStore(
       if (updatedNote) await storage.saveNote(updatedNote);
     },
 
-    async updateNoteMeta(id: string, updates: { status?: NoteStatus; tags?: string[] }) {
+    async updateNoteMeta(id: string, updates: { status?: NoteStatus; tags?: string[]; pinned?: boolean }) {
       const updatedAt = Date.now();
       patchState(store, (state) => ({
         notes: state.notes.map((n) =>

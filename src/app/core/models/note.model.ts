@@ -7,6 +7,7 @@ export interface Note {
   folderId: string | null;
   createdAt: number;
   updatedAt: number;
+  pinned?: boolean;
   status?: NoteStatus;
   tags?: string[];
 }

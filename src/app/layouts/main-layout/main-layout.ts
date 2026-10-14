@@ -40,6 +40,7 @@ import JSZip from 'jszip';
 import { Marked } from 'marked';
 import markedKatex from 'marked-katex-extension';
 import mermaid from 'mermaid';
+import hljs from 'highlight.js/lib/common';
 
 import { NoteStore } from '../../core/stores/note.store';
 import { Note, NoteStatus } from '../../core/models/note.model';
@@ -49,13 +50,18 @@ const customTheme = EditorView.theme({
   '&': { backgroundColor: 'transparent !important', color: 'var(--text-main) !important' },
   '.cm-content': { fontFamily: "'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", fontSize: '15px' },
   '.cm-gutters': { backgroundColor: 'transparent !important', color: 'var(--text-muted)', borderRight: 'none' },
-  '&.cm-focused .cm-cursor': { borderLeftColor: 'var(--text-main)' },
   '&.cm-focused .cm-selectionBackground, ::selection': { backgroundColor: 'var(--selection-bg) !important' },
   '.cm-code-meta': { color: 'var(--hl-keyword) !important' },
   '.cm-math-dollar': { color: 'var(--hl-dollar) !important', fontWeight: 'bold' },
   '.cm-md-hash': { color: 'var(--hl-hash) !important', fontWeight: 'bold' },
   '.cm-md-checkbox': { color: 'var(--hl-checkbox) !important', fontWeight: 'bold' },
-  '.cm-md-sublist': { color: 'var(--hl-sublist) !important', fontWeight: 'bold' }
+  '.cm-heading': { fontWeight: '700', lineHeight: '1.2', display: 'block' },
+  '.cm-heading-1': { fontSize: '2em' },
+  '.cm-heading-2': { fontSize: '1.7em' },
+  '.cm-heading-3': { fontSize: '1.4em' },
+  '.cm-heading-4': { fontSize: '1.2em' },
+  '.cm-heading-5': { fontSize: '1.08em' },
+  '.cm-heading-6': { fontSize: '1em' },
 });
 
 const inkdropHighlightStyle = HighlightStyle.define([
@@ -71,15 +77,25 @@ const inkdropHighlightStyle = HighlightStyle.define([
   { tag: t.punctuation,  color: 'var(--hl-punct)', fontWeight: '500' },
   { tag: t.angleBracket, color: 'var(--hl-punct)' },
   { tag: t.squareBracket,color: 'var(--hl-punct)' },
+  { tag: t.tagName,      color: 'var(--hl-heading)', fontWeight: '600' },
+  { tag: t.attributeName,color: 'var(--hl-property)' },
+  { tag: t.attributeValue,color: 'var(--hl-string)' },
+  { tag: t.documentMeta, color: 'var(--hl-meta)' },
   { tag: t.string, color: 'var(--hl-string)' },
   { tag: t.propertyName, color: 'var(--hl-property)' },
   { tag: t.keyword, color: 'var(--hl-keyword)' },
   { tag: [t.number, t.bool, t.null], color: 'var(--hl-number)' },
   { tag: t.operator, color: 'var(--hl-operator)' },
+  { tag: t.variableName, color: 'var(--text-main)' },
+  { tag: t.definition(t.variableName), color: 'var(--hl-meta)' },
   { tag: t.function(t.variableName), color: 'var(--hl-function)' },
+  { tag: t.definition(t.function(t.variableName)), color: 'var(--hl-function)', fontWeight: '600' },
   { tag: t.className, color: 'var(--hl-function)' },
   { tag: t.definition(t.typeName), color: 'var(--hl-keyword)' },
-  { tag: t.typeName, color: 'var(--hl-keyword)' }
+  { tag: t.typeName, color: 'var(--hl-keyword)' },
+  { tag: [t.regexp, t.special(t.string)], color: 'var(--hl-code)' },
+  { tag: t.escape, color: 'var(--hl-meta)' },
+  { tag: t.invalid, color: 'var(--hl-del)', textDecoration: 'underline wavy' }
 ]);
 
 const dollarDecorator = new MatchDecorator({
@@ -114,16 +130,63 @@ const codeMetaPlugin = ViewPlugin.fromClass(class {
   update(update: ViewUpdate) { this.decorations = codeMetaDecorator.updateDeco(update, this.decorations); }
 }, { decorations: v => v.decorations });
 
-const sublistDecorator = new MatchDecorator({
-  regexp: /^[ \t]+[-*+]/gm, decoration: Decoration.mark({ class: 'cm-md-sublist' })
-});
 const sublistPlugin = ViewPlugin.fromClass(class {
-  decorations: any; constructor(view: EditorView) { this.decorations = sublistDecorator.createDeco(view); }
-  update(update: ViewUpdate) { this.decorations = sublistDecorator.updateDeco(update, this.decorations); }
+  decorations: any;
+
+  constructor(view: EditorView) {
+    this.decorations = this.buildDecorations(view);
+  }
+
+  update(update: ViewUpdate) {
+    if (update.docChanged || update.viewportChanged) {
+      this.decorations = this.buildDecorations(update.view);
+    }
+  }
+
+  private buildDecorations(view: EditorView) {
+    const ranges = [];
+    const nestedListMarker = /^([ \t]{2,}|\t+)([-*+])(?=\s|$)/;
+
+    for (const visibleRange of view.visibleRanges) {
+      let line = view.state.doc.lineAt(visibleRange.from);
+      while (line.from <= visibleRange.to) {
+        const match = nestedListMarker.exec(line.text);
+        if (match) {
+          const markerFrom = line.from + match[1].length;
+          ranges.push(Decoration.mark({ class: 'cm-md-sublist' }).range(markerFrom, markerFrom + 1));
+        }
+
+        if (line.to >= visibleRange.to || line.number === view.state.doc.lines) break;
+        line = view.state.doc.line(line.number + 1);
+      }
+    }
+
+    return Decoration.set(ranges, true);
+  }
+}, { decorations: v => v.decorations });
+
+const headingDecorator = new MatchDecorator({
+  regexp: /^(#{1,6})(?:\s+.*)?$/gm,
+  decoration: (match) => {
+    const level = match[1].length;
+    return Decoration.mark({ class: `cm-heading cm-heading-${level}` });
+  }
+});
+const headingPlugin = ViewPlugin.fromClass(class {
+  decorations: any; constructor(view: EditorView) { this.decorations = headingDecorator.createDeco(view); }
+  update(update: ViewUpdate) { this.decorations = headingDecorator.updateDeco(update, this.decorations); }
 }, { decorations: v => v.decorations });
 
 const markedInstance = new Marked({ gfm: true });
 markedInstance.use(markedKatex({ throwOnError: false }));
+
+type ItemContextMenu = {
+  kind: 'folder' | 'note';
+  id: string;
+  pinned: boolean;
+  x: number;
+  y: number;
+};
 
 markedInstance.use({
   renderer: {
@@ -149,6 +212,8 @@ markedInstance.use({
       }
 
       lang = lang.trim();
+      const language = lang.split(/\s+/, 1)[0].toLowerCase();
+      const safeLanguage = language.replace(/[^a-z0-9_+-]/g, '');
       let headerHtml = '';
       if (title || filename) {
         const svgIcon = `<svg viewBox="64 64 896 896" focusable="false" fill="currentColor" width="1em" height="1em"><path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm0 820c-205.4 0-372-166.6-372-372s166.6-372 372-372 372 166.6 372 372-166.6 372-372 372z"></path><path d="M464 336a48 48 0 1096 0 48 48 0 10-96 0zm72 112h-48c-4.4 0-8 3.6-8 8v272c0 4.4 3.6 8 8 8h48c4.4 0 8-3.6 8-8V456c0-4.4-3.6-8-8-8z"></path></svg>`;
@@ -160,20 +225,15 @@ markedInstance.use({
         `;
       }
 
-      const escapeTest = /[&<>"']/;
-      const escapeReplace = /[&<>"']/g;
-      const escapeReplacements: any = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-      const getEscapeReplacement = (ch: string) => escapeReplacements[ch];
+      const escapeHtml = (code: string) => code.replace(/[&<>"']/g, character => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[character]!);
+      const highlightedCode = safeLanguage && hljs.getLanguage(safeLanguage)
+        ? hljs.highlight(token.text, { language: safeLanguage, ignoreIllegals: true }).value
+        : escapeHtml(token.text);
+      const languageClass = safeLanguage ? ` language-${safeLanguage}` : '';
 
-      let escapedCode = token.text;
-      if (escapeTest.test(escapedCode)) {
-         escapedCode = escapedCode.replace(escapeReplace, getEscapeReplacement);
-      }
-
-      if (headerHtml) {
-         return `<div class="custom-code-block">${headerHtml}<pre><code class="language-${lang}">${escapedCode}</code></pre></div>`;
-      }
-      return false;
+      return `<div class="custom-code-block">${headerHtml}<pre><code class="hljs${languageClass}">${highlightedCode}</code></pre></div>`;
     }
   }
 });
@@ -197,6 +257,14 @@ export class MainLayoutComponent implements OnDestroy {
   private readonly sanitizer = inject(DomSanitizer);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly modal = inject(NzModalService);
+  private readonly tagPalette = [
+    { background: '#E6F7FF', borderColor: '#91D5FF', color: '#0050B3' },
+    { background: '#F6FFED', borderColor: '#B7EB8F', color: '#389E0D' },
+    { background: '#FFF7E6', borderColor: '#FFC069', color: '#D46B08' },
+    { background: '#F9F0FF', borderColor: '#D3ADF7', color: '#722ED1' },
+    { background: '#FFF1F0', borderColor: '#FFCCC7', color: '#CF1322' },
+    { background: '#E6FFFB', borderColor: '#87E8DE', color: '#08979C' },
+  ];
 
   parsedContent = signal<SafeHtml>('');
   viewMode = signal<'edit' | 'split' | 'preview'>('split');
@@ -214,6 +282,7 @@ export class MainLayoutComponent implements OnDestroy {
 
   searchQuery = signal('');
   selectedTag = signal<string | null>(null);
+  contextMenu = signal<ItemContextMenu | null>(null);
 
   allTags = computed(() => {
     const tags = new Set<string>();
@@ -233,9 +302,10 @@ export class MainLayoutComponent implements OnDestroy {
         const matchQuery = !query || n.title.toLowerCase().includes(query) || n.content.toLowerCase().includes(query);
         const matchTag = !tagFilter || (n.tags && n.tags.includes(tagFilter));
         return matchFolder && matchQuery && matchTag;
-      });
+      }).sort((left, right) => Number(Boolean(right.pinned)) - Number(Boolean(left.pinned)));
       return { ...folder, notes };
     })
+    .sort((left, right) => Number(Boolean(right.pinned)) - Number(Boolean(left.pinned)))
     .filter(folder => (!query && !tagFilter) || folder.notes.length > 0);
   });
 
@@ -247,7 +317,7 @@ export class MainLayoutComponent implements OnDestroy {
       const matchQuery = !query || n.title.toLowerCase().includes(query) || n.content.toLowerCase().includes(query);
       const matchTag = !tagFilter || (n.tags && n.tags.includes(tagFilter));
       return matchFolder && matchQuery && matchTag;
-    });
+    }).sort((left, right) => Number(Boolean(right.pinned)) - Number(Boolean(left.pinned)));
   });
 
   private editorView?: EditorView;
@@ -348,6 +418,7 @@ export class MainLayoutComponent implements OnDestroy {
         checkboxPlugin,
         codeMetaPlugin,
         sublistPlugin,
+        headingPlugin,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             this.handleEditorChange(update.state.doc.toString());
@@ -386,6 +457,36 @@ export class MainLayoutComponent implements OnDestroy {
     this.viewMode.set(mode);
   }
 
+  openItemContextMenu(event: MouseEvent, kind: ItemContextMenu['kind'], id: string, pinned = false): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const menuWidth = 190;
+    const menuHeight = 44;
+    this.contextMenu.set({
+      kind,
+      id,
+      pinned,
+      x: Math.max(8, Math.min(event.clientX, window.innerWidth - menuWidth - 8)),
+      y: Math.max(8, Math.min(event.clientY, window.innerHeight - menuHeight - 8)),
+    });
+  }
+
+  closeContextMenu(): void {
+    this.contextMenu.set(null);
+  }
+
+  toggleContextItemPinned(): void {
+    const target = this.contextMenu();
+    if (!target) return;
+
+    if (target.kind === 'folder') {
+      this.store.setFolderPinned(target.id, !target.pinned);
+    } else {
+      this.store.updateNoteMeta(target.id, { pinned: !target.pinned });
+    }
+    this.closeContextMenu();
+  }
+
   getStatusLabel(status?: NoteStatus): string {
     const labels: Record<string, string> = {
       'none': 'None',
@@ -395,6 +496,18 @@ export class MainLayoutComponent implements OnDestroy {
       'dropped': 'Dropped'
     };
     return labels[status || 'none'];
+  }
+
+  getTagStyle(tag: string): { background: string; borderColor: string; color: string } {
+    const hash = Array.from(tag).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    const index = hash % this.tagPalette.length;
+    const selected = this.tagPalette[index];
+
+    return {
+      background: selected.background,
+      borderColor: selected.borderColor,
+      color: selected.color,
+    };
   }
 
   updateStatus(status: NoteStatus): void {
@@ -450,13 +563,25 @@ export class MainLayoutComponent implements OnDestroy {
       if (!currentNote) return;
       const content = currentNote.content;
       let matchCount = 0;
-      const regex = /(```[\s\S]*?```)|(^([ \t]*(?:[-*+]|\d+\.)\s+)\[([ xX])\])/gm;
-      const newContent = content.replace(regex, (match, codeBlock, _, prefix, checkState) => {
+      const regex = /(```[\s\S]*?```)|^([ \t]*(?:[-*+]|\d+\.)[ \t]+\[)([ xX])(\][ \t]*)(.*)$/gm;
+      const newContent = content.replace(regex, (match, codeBlock, prefix, checkState, checkboxEnd, taskText) => {
         if (codeBlock) return match;
         if (matchCount === index) {
           matchCount++;
-          const newState = (checkState === ' ' ? 'x' : ' ');
-          return `${prefix}[${newState}]`;
+          const newState = checkState === ' ' ? 'x' : ' ';
+          const leadingSpace = taskText.match(/^\s*/)?.[0] ?? '';
+          const trailingSpace = taskText.match(/\s*$/)?.[0] ?? '';
+          let taskBody = taskText.slice(leadingSpace.length, taskText.length - trailingSpace.length);
+
+          if (taskBody) {
+            if (newState === 'x' && !/^~~[\s\S]+~~$/.test(taskBody)) {
+              taskBody = `~~${taskBody}~~`;
+            } else if (newState === ' ' && /^~~[\s\S]+~~$/.test(taskBody)) {
+              taskBody = taskBody.slice(2, -2);
+            }
+          }
+
+          return `${prefix}${newState}${checkboxEnd}${leadingSpace}${taskBody}${trailingSpace}`;
         }
         matchCount++;
         return match;
