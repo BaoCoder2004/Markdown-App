@@ -10,4 +10,6 @@ export interface Note {
   pinned?: boolean;
   status?: NoteStatus;
   tags?: string[];
+  isTrash?: boolean;
+  trashedAt?: number;
 }

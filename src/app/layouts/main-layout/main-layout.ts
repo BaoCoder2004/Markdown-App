@@ -3,6 +3,7 @@ import {
   Component,
   effect,
   ElementRef,
+  HostListener,
   inject,
   OnDestroy,
   PLATFORM_ID,
@@ -25,160 +26,43 @@ import { NzTagModule } from 'ng-zorro-antd/tag';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
+import { NzMessageService } from 'ng-zorro-antd/message';
 
-// CodeMirror
+// CodeMirror & Vim
 import { EditorState } from '@codemirror/state';
-import { EditorView, keymap, lineNumbers, ViewPlugin, ViewUpdate, MatchDecorator, Decoration } from '@codemirror/view';
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
-import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
-import { languages } from '@codemirror/language-data';
-import { HighlightStyle, syntaxHighlighting, foldGutter } from '@codemirror/language';
-import { tags as t } from '@lezer/highlight';
+import { EditorView } from '@codemirror/view';
+import { vim } from '@replit/codemirror-vim';
 
-// JSZip
-import JSZip from 'jszip';
-import { Marked } from 'marked';
-import markedKatex from 'marked-katex-extension';
-import mermaid from 'mermaid';
-import hljs from 'highlight.js/lib/common';
-
+// Core Services & Models
 import { NoteStore } from '../../core/stores/note.store';
 import { Note, NoteStatus } from '../../core/models/note.model';
 import { Folder } from '../../core/models/folder.model';
+import { StoredAttachment } from '../../core/services/storage.service';
+import { AppTheme, ThemeService } from '../../core/services/theme.service';
+import { AttachmentService } from '../../core/services/attachment.service';
+import { buildCodeMirrorExtensions, vimCompartment } from '../../core/codemirror/codemirror-plugins';
+import { EditorCommands } from '../../core/editor/editor-commands';
+import { parseMarkdownToHtml, renderMermaidDiagrams } from '../../core/markdown/markdown-parser';
+import { toggleMarkdownTaskCheckbox } from '../../core/markdown/markdown-task.util';
+import { extractTableOfContents, TocItem } from '../../core/markdown/toc.util';
 
-const customTheme = EditorView.theme({
-  '&': { backgroundColor: 'transparent !important', color: 'var(--text-main) !important' },
-  '.cm-content': { fontFamily: "'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", fontSize: '15px' },
-  '.cm-gutters': { backgroundColor: 'transparent !important', color: 'var(--text-muted)', borderRight: 'none' },
-  '&.cm-focused .cm-selectionBackground, ::selection': { backgroundColor: 'var(--selection-bg) !important' },
-  '.cm-code-meta': { color: 'var(--hl-keyword) !important' },
-  '.cm-math-dollar': { color: 'var(--hl-dollar) !important', fontWeight: 'bold' },
-  '.cm-md-hash': { color: 'var(--hl-hash) !important', fontWeight: 'bold' },
-  '.cm-md-checkbox': { color: 'var(--hl-checkbox) !important', fontWeight: 'bold' },
-  '.cm-heading': { fontWeight: '700', lineHeight: '1.2', display: 'block' },
-  '.cm-heading-1': { fontSize: '2em' },
-  '.cm-heading-2': { fontSize: '1.7em' },
-  '.cm-heading-3': { fontSize: '1.4em' },
-  '.cm-heading-4': { fontSize: '1.2em' },
-  '.cm-heading-5': { fontSize: '1.08em' },
-  '.cm-heading-6': { fontSize: '1em' },
-});
-
-const inkdropHighlightStyle = HighlightStyle.define([
-  { tag: t.heading,      color: 'var(--hl-heading)', fontWeight: 'bold' },
-  { tag: t.strong,       fontWeight: 'bold', color: 'var(--hl-strong)' },
-  { tag: t.emphasis,     fontStyle: 'italic', color: 'var(--hl-em)' },
-  { tag: t.strikethrough, textDecoration: 'line-through', color: 'var(--hl-del)' },
-  { tag: t.link,         color: 'var(--hl-link)', textDecoration: 'underline' },
-  { tag: t.url,          color: 'var(--hl-link)' },
-  { tag: t.monospace,    color: 'var(--hl-code)', backgroundColor: 'var(--bg-code)', borderRadius: '3px', padding: '1px 3px' },
-  { tag: t.comment,      color: 'var(--hl-comment)', fontStyle: 'italic' },
-  { tag: t.meta,         color: 'var(--hl-meta)', fontWeight: '500' },
-  { tag: t.punctuation,  color: 'var(--hl-punct)', fontWeight: '500' },
-  { tag: t.angleBracket, color: 'var(--hl-punct)' },
-  { tag: t.squareBracket,color: 'var(--hl-punct)' },
-  { tag: t.tagName,      color: 'var(--hl-heading)', fontWeight: '600' },
-  { tag: t.attributeName,color: 'var(--hl-property)' },
-  { tag: t.attributeValue,color: 'var(--hl-string)' },
-  { tag: t.documentMeta, color: 'var(--hl-meta)' },
-  { tag: t.string, color: 'var(--hl-string)' },
-  { tag: t.propertyName, color: 'var(--hl-property)' },
-  { tag: t.keyword, color: 'var(--hl-keyword)' },
-  { tag: [t.number, t.bool, t.null], color: 'var(--hl-number)' },
-  { tag: t.operator, color: 'var(--hl-operator)' },
-  { tag: t.variableName, color: 'var(--text-main)' },
-  { tag: t.definition(t.variableName), color: 'var(--hl-meta)' },
-  { tag: t.function(t.variableName), color: 'var(--hl-function)' },
-  { tag: t.definition(t.function(t.variableName)), color: 'var(--hl-function)', fontWeight: '600' },
-  { tag: t.className, color: 'var(--hl-function)' },
-  { tag: t.definition(t.typeName), color: 'var(--hl-keyword)' },
-  { tag: t.typeName, color: 'var(--hl-keyword)' },
-  { tag: [t.regexp, t.special(t.string)], color: 'var(--hl-code)' },
-  { tag: t.escape, color: 'var(--hl-meta)' },
-  { tag: t.invalid, color: 'var(--hl-del)', textDecoration: 'underline wavy' }
-]);
-
-const dollarDecorator = new MatchDecorator({
-  regexp: /\$/g, decoration: Decoration.mark({ class: 'cm-math-dollar' })
-});
-const dollarPlugin = ViewPlugin.fromClass(class {
-  decorations: any; constructor(view: EditorView) { this.decorations = dollarDecorator.createDeco(view); }
-  update(update: ViewUpdate) { this.decorations = dollarDecorator.updateDeco(update, this.decorations); }
-}, { decorations: v => v.decorations });
-
-const hashDecorator = new MatchDecorator({
-  regexp: /(^|\s)(#+)(?=\s)/g, decoration: Decoration.mark({ class: 'cm-md-hash' })
-});
-const hashPlugin = ViewPlugin.fromClass(class {
-  decorations: any; constructor(view: EditorView) { this.decorations = hashDecorator.createDeco(view); }
-  update(update: ViewUpdate) { this.decorations = hashDecorator.updateDeco(update, this.decorations); }
-}, { decorations: v => v.decorations });
-
-const checkboxDecorator = new MatchDecorator({
-  regexp: /\[[ \t]*[xX]?[ \t]*\]/g, decoration: Decoration.mark({ class: 'cm-md-checkbox' })
-});
-const checkboxPlugin = ViewPlugin.fromClass(class {
-  decorations: any; constructor(view: EditorView) { this.decorations = checkboxDecorator.createDeco(view); }
-  update(update: ViewUpdate) { this.decorations = checkboxDecorator.updateDeco(update, this.decorations); }
-}, { decorations: v => v.decorations });
-
-const codeMetaDecorator = new MatchDecorator({
-  regexp: /(filename|title)="([^"]+)"/g, decoration: Decoration.mark({ class: 'cm-code-meta' })
-});
-const codeMetaPlugin = ViewPlugin.fromClass(class {
-  decorations: any; constructor(view: EditorView) { this.decorations = codeMetaDecorator.createDeco(view); }
-  update(update: ViewUpdate) { this.decorations = codeMetaDecorator.updateDeco(update, this.decorations); }
-}, { decorations: v => v.decorations });
-
-const sublistPlugin = ViewPlugin.fromClass(class {
-  decorations: any;
-
-  constructor(view: EditorView) {
-    this.decorations = this.buildDecorations(view);
-  }
-
-  update(update: ViewUpdate) {
-    if (update.docChanged || update.viewportChanged) {
-      this.decorations = this.buildDecorations(update.view);
-    }
-  }
-
-  private buildDecorations(view: EditorView) {
-    const ranges = [];
-    const nestedListMarker = /^([ \t]{2,}|\t+)([-*+])(?=\s|$)/;
-
-    for (const visibleRange of view.visibleRanges) {
-      let line = view.state.doc.lineAt(visibleRange.from);
-      while (line.from <= visibleRange.to) {
-        const match = nestedListMarker.exec(line.text);
-        if (match) {
-          const markerFrom = line.from + match[1].length;
-          ranges.push(Decoration.mark({ class: 'cm-md-sublist' }).range(markerFrom, markerFrom + 1));
-        }
-
-        if (line.to >= visibleRange.to || line.number === view.state.doc.lines) break;
-        line = view.state.doc.line(line.number + 1);
-      }
-    }
-
-    return Decoration.set(ranges, true);
-  }
-}, { decorations: v => v.decorations });
-
-const headingDecorator = new MatchDecorator({
-  regexp: /^(#{1,6})(?:\s+.*)?$/gm,
-  decoration: (match) => {
-    const level = match[1].length;
-    return Decoration.mark({ class: `cm-heading cm-heading-${level}` });
-  }
-});
-const headingPlugin = ViewPlugin.fromClass(class {
-  decorations: any; constructor(view: EditorView) { this.decorations = headingDecorator.createDeco(view); }
-  update(update: ViewUpdate) { this.decorations = headingDecorator.updateDeco(update, this.decorations); }
-}, { decorations: v => v.decorations });
-
-const markedInstance = new Marked({ gfm: true });
-markedInstance.use(markedKatex({ throwOnError: false }));
+// Shared Utilities & Components
+import { getTagStyle, TagStyle } from '../../shared/utils/tag.util';
+import {
+  exportMarkdownFile,
+  exportFolderAsZip,
+  exportHtmlFile,
+  copyHtmlToClipboard,
+  exportWorkspaceBackup,
+  parseWorkspaceBackup,
+  base64ToBlob,
+  InkNoteBackup,
+} from '../../shared/utils/file.util';
+import { formatRelativeTime } from '../../shared/utils/date.util';
+import { NoteItemComponent } from './components/note-item/note-item.component';
+import { FormatAction, FormatToolbarComponent } from './components/format-toolbar/format-toolbar.component';
+import { TocPanelComponent } from './components/toc-panel/toc-panel.component';
+import { TrashViewComponent } from './components/trash-view/trash-view.component';
 
 type ItemContextMenu = {
   kind: 'folder' | 'note';
@@ -188,65 +72,34 @@ type ItemContextMenu = {
   y: number;
 };
 
-markedInstance.use({
-  renderer: {
-    code(token: any) {
-      if (token.lang === 'mermaid') {
-        return `<div class="mermaid">${token.text}</div>`;
-      }
-
-      let lang = token.lang || '';
-      let filename = '';
-      let title = '';
-
-      const filenameMatch = lang.match(/filename="([^"]+)"/);
-      if (filenameMatch) {
-        filename = filenameMatch[1];
-        lang = lang.replace(filenameMatch[0], '');
-      }
-
-      const titleMatch = lang.match(/title="([^"]+)"/);
-      if (titleMatch) {
-        title = titleMatch[1];
-        lang = lang.replace(titleMatch[0], '');
-      }
-
-      lang = lang.trim();
-      const language = lang.split(/\s+/, 1)[0].toLowerCase();
-      const safeLanguage = language.replace(/[^a-z0-9_+-]/g, '');
-      let headerHtml = '';
-      if (title || filename) {
-        const svgIcon = `<svg viewBox="64 64 896 896" focusable="false" fill="currentColor" width="1em" height="1em"><path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm0 820c-205.4 0-372-166.6-372-372s166.6-372 372-372 372 166.6 372 372-166.6 372-372 372z"></path><path d="M464 336a48 48 0 1096 0 48 48 0 10-96 0zm72 112h-48c-4.4 0-8 3.6-8 8v272c0 4.4 3.6 8 8 8h48c4.4 0 8-3.6 8-8V456c0-4.4-3.6-8-8-8z"></path></svg>`;
-        headerHtml = `
-          <div class="code-block-header">
-            ${title ? `<div class="code-title"><span class="anticon">${svgIcon}</span>${title}</div>` : ''}
-            ${filename ? `<div class="code-filename">${filename}</div>` : ''}
-          </div>
-        `;
-      }
-
-      const escapeHtml = (code: string) => code.replace(/[&<>"']/g, character => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-      })[character]!);
-      const highlightedCode = safeLanguage && hljs.getLanguage(safeLanguage)
-        ? hljs.highlight(token.text, { language: safeLanguage, ignoreIllegals: true }).value
-        : escapeHtml(token.text);
-      const languageClass = safeLanguage ? ` language-${safeLanguage}` : '';
-
-      return `<div class="custom-code-block">${headerHtml}<pre><code class="hljs${languageClass}">${highlightedCode}</code></pre></div>`;
-    }
-  }
-});
-
-mermaid.initialize({ startOnLoad: false, theme: 'default' });
+const STATUS_LABELS: Record<string, string> = {
+  none: 'None',
+  active: 'Active',
+  'on-hold': 'On Hold',
+  completed: 'Completed',
+  dropped: 'Dropped',
+};
 
 @Component({
   selector: 'app-main-layout',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, NzLayoutModule, NzMenuModule, NzIconModule,
-    NzTooltipModule, NzButtonModule, NzDropdownModule, NzTagModule, NzInputModule,
-    NzSelectModule, NzModalModule
+    CommonModule,
+    FormsModule,
+    NzLayoutModule,
+    NzMenuModule,
+    NzIconModule,
+    NzTooltipModule,
+    NzButtonModule,
+    NzDropdownModule,
+    NzTagModule,
+    NzInputModule,
+    NzSelectModule,
+    NzModalModule,
+    NoteItemComponent,
+    FormatToolbarComponent,
+    TocPanelComponent,
+    TrashViewComponent,
   ],
   templateUrl: './main-layout.html',
   styleUrls: ['./main-layout.scss'],
@@ -254,21 +107,21 @@ mermaid.initialize({ startOnLoad: false, theme: 'default' });
 })
 export class MainLayoutComponent implements OnDestroy {
   protected readonly store = inject(NoteStore);
+  readonly themeService = inject(ThemeService);
+  private readonly attachmentService = inject(AttachmentService);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly modal = inject(NzModalService);
-  private readonly tagPalette = [
-    { background: '#E6F7FF', borderColor: '#91D5FF', color: '#0050B3' },
-    { background: '#F6FFED', borderColor: '#B7EB8F', color: '#389E0D' },
-    { background: '#FFF7E6', borderColor: '#FFC069', color: '#D46B08' },
-    { background: '#F9F0FF', borderColor: '#D3ADF7', color: '#722ED1' },
-    { background: '#FFF1F0', borderColor: '#FFCCC7', color: '#CF1322' },
-    { background: '#E6FFFB', borderColor: '#87E8DE', color: '#08979C' },
-  ];
+  private readonly message = inject(NzMessageService);
 
   parsedContent = signal<SafeHtml>('');
   viewMode = signal<'edit' | 'split' | 'preview'>('split');
-  currentTheme = signal<'theme-default' | 'theme-dark' | 'theme-cream'>('theme-default');
+  splitRatio = signal<number>(50);
+  isResizing = signal<boolean>(false);
+  isTocOpen = signal(false);
+  isSidebarCollapsed = signal<boolean>(false);
+  noteSortBy = signal<'updated' | 'created' | 'title'>('updated');
+  readonly isVimMode = signal<boolean>(false);
 
   editingTitleId = signal<string | null>(null);
   editTitleText = signal<string>('');
@@ -284,44 +137,101 @@ export class MainLayoutComponent implements OnDestroy {
   selectedTag = signal<string | null>(null);
   contextMenu = signal<ItemContextMenu | null>(null);
 
+  private editorView?: EditorView;
+  private _editorContainer?: ElementRef;
+  private mermaidTimer?: ReturnType<typeof setTimeout>;
+
+  tocItems = computed(() =>
+    extractTableOfContents(this.store.activeNote()?.content || '')
+  );
+
   allTags = computed(() => {
     const tags = new Set<string>();
-    this.store.notes().forEach(n => {
-      if (n.tags) n.tags.forEach(t => tags.add(t));
+    this.store.notes().forEach((n) => {
+      n.tags?.forEach((t) => tags.add(t));
     });
     return Array.from(tags).sort();
   });
+
+  private sortNotes(notes: Note[]): Note[] {
+    const sortBy = this.noteSortBy();
+    return [...notes].sort((left, right) => {
+      const pinDiff = Number(Boolean(right.pinned)) - Number(Boolean(left.pinned));
+      if (pinDiff !== 0) return pinDiff;
+
+      if (sortBy === 'created') {
+        return right.createdAt - left.createdAt;
+      }
+      if (sortBy === 'title') {
+        return left.title.localeCompare(right.title);
+      }
+      return (right.updatedAt || right.createdAt) - (left.updatedAt || left.createdAt);
+    });
+  }
 
   foldersWithNotes = computed(() => {
     const query = this.searchQuery().toLowerCase();
     const tagFilter = this.selectedTag();
 
-    return this.store.folders().map(folder => {
-      const notes = this.store.notes().filter(n => {
-        const matchFolder = n.folderId === folder.id;
-        const matchQuery = !query || n.title.toLowerCase().includes(query) || n.content.toLowerCase().includes(query);
-        const matchTag = !tagFilter || (n.tags && n.tags.includes(tagFilter));
-        return matchFolder && matchQuery && matchTag;
-      }).sort((left, right) => Number(Boolean(right.pinned)) - Number(Boolean(left.pinned)));
-      return { ...folder, notes };
-    })
-    .sort((left, right) => Number(Boolean(right.pinned)) - Number(Boolean(left.pinned)))
-    .filter(folder => (!query && !tagFilter) || folder.notes.length > 0);
+    return this.store
+      .folders()
+      .map((folder) => {
+        const matchingNotes = this.store
+          .notes()
+          .filter((n) => {
+            if (n.isTrash) return false;
+            const matchFolder = n.folderId === folder.id;
+            const matchQuery =
+              !query || n.title.toLowerCase().includes(query) || n.content.toLowerCase().includes(query);
+            const matchTag = !tagFilter || (n.tags && n.tags.includes(tagFilter));
+            return matchFolder && matchQuery && matchTag;
+          });
+        const notes = this.sortNotes(matchingNotes);
+        return { ...folder, notes };
+      })
+      .sort((left, right) => Number(Boolean(right.pinned)) - Number(Boolean(left.pinned)))
+      .filter((folder) => (!query && !tagFilter) || folder.notes.length > 0);
   });
 
   rootNotes = computed(() => {
     const query = this.searchQuery().toLowerCase();
     const tagFilter = this.selectedTag();
-    return this.store.notes().filter(n => {
-      const matchFolder = n.folderId === null;
-      const matchQuery = !query || n.title.toLowerCase().includes(query) || n.content.toLowerCase().includes(query);
-      const matchTag = !tagFilter || (n.tags && n.tags.includes(tagFilter));
-      return matchFolder && matchQuery && matchTag;
-    }).sort((left, right) => Number(Boolean(right.pinned)) - Number(Boolean(left.pinned)));
+    const matchingNotes = this.store
+      .notes()
+      .filter((n) => {
+        if (n.isTrash) return false;
+        const matchFolder = n.folderId === null;
+        const matchQuery =
+          !query || n.title.toLowerCase().includes(query) || n.content.toLowerCase().includes(query);
+        const matchTag = !tagFilter || (n.tags && n.tags.includes(tagFilter));
+        return matchFolder && matchQuery && matchTag;
+      });
+    return this.sortNotes(matchingNotes);
   });
 
-  private editorView?: EditorView;
-  private _editorContainer?: ElementRef;
+  activeNoteWordCount = computed(() => {
+    const note = this.store.activeNote();
+    if (!note?.content) return 0;
+    const words = note.content.trim().split(/\s+/).filter(Boolean);
+    return words.length;
+  });
+
+  activeNoteCharCount = computed(() => {
+    const note = this.store.activeNote();
+    return note ? note.content.length : 0;
+  });
+
+  activeNoteReadingTime = computed(() => {
+    const words = this.activeNoteWordCount();
+    if (words === 0) return '0 min read';
+    const minutes = Math.max(1, Math.ceil(words / 200));
+    return `~${minutes} min read`;
+  });
+
+  activeNoteLastUpdated = computed(() => {
+    const note = this.store.activeNote();
+    return note ? formatRelativeTime(note.updatedAt || note.createdAt) : '';
+  });
 
   @ViewChild('editorContainer') set editorContainerRef(ref: ElementRef | undefined) {
     if (ref && !this.editorView) {
@@ -339,11 +249,17 @@ export class MainLayoutComponent implements OnDestroy {
 
   constructor() {
     if (isPlatformBrowser(this.platformId)) {
-      const savedTheme = localStorage.getItem('app-theme') as any;
-      const initialTheme = savedTheme || 'theme-default';
-      this.currentTheme.set(initialTheme);
-      // Gán class Theme ra tận document.body để Modal có thể nhận diện được
-      document.body.classList.add(initialTheme);
+      const savedRatio = localStorage.getItem('inknote_split_ratio');
+      if (savedRatio) {
+        const parsed = parseFloat(savedRatio);
+        if (!isNaN(parsed) && parsed >= 15 && parsed <= 85) {
+          this.splitRatio.set(parsed);
+        }
+      }
+      const savedVim = localStorage.getItem('inknote_vim_mode');
+      if (savedVim === 'true') {
+        this.isVimMode.set(true);
+      }
     }
 
     effect(() => {
@@ -365,36 +281,16 @@ export class MainLayoutComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.mermaidTimer) {
+      clearTimeout(this.mermaidTimer);
+    }
     this.editorView?.destroy();
   }
 
-  setTheme(theme: 'theme-default' | 'theme-dark' | 'theme-cream'): void {
-    const oldTheme = this.currentTheme();
-    this.currentTheme.set(theme);
-    if (isPlatformBrowser(this.platformId)) {
-      localStorage.setItem('app-theme', theme);
-      // Thay đổi class Theme trên body
-      document.body.classList.remove(oldTheme);
-      document.body.classList.add(theme);
-
-      const note = this.store.activeNote();
-      if (note) this.updatePreview(note.content);
-    }
-  }
-
-  getRelativeTime(timestamp?: number): string {
-    if (!timestamp) return '';
-    const diffMs = timestamp - Date.now();
-    const diffMins = Math.round(diffMs / 60000);
-    const diffHours = Math.round(diffMs / 3600000);
-    const diffDays = Math.round(diffMs / 86400000);
-
-    const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
-
-    if (Math.abs(diffMins) < 1) return 'Just now';
-    if (Math.abs(diffMins) < 60) return rtf.format(diffMins, 'minute');
-    if (Math.abs(diffHours) < 24) return rtf.format(diffHours, 'hour');
-    return rtf.format(diffDays, 'day');
+  setTheme(theme: AppTheme): void {
+    this.themeService.setTheme(theme);
+    const note = this.store.activeNote();
+    if (note) this.updatePreview(note.content);
   }
 
   private initCodeMirror(): void {
@@ -404,27 +300,11 @@ export class MainLayoutComponent implements OnDestroy {
 
     const state = EditorState.create({
       doc: startContent,
-      extensions: [
-        lineNumbers(),
-        foldGutter(),
-        EditorView.lineWrapping,
-        history(),
-        keymap.of([...defaultKeymap, ...historyKeymap]),
-        markdown({ base: markdownLanguage, codeLanguages: languages }),
-        customTheme,
-        syntaxHighlighting(inkdropHighlightStyle),
-        dollarPlugin,
-        hashPlugin,
-        checkboxPlugin,
-        codeMetaPlugin,
-        sublistPlugin,
-        headingPlugin,
-        EditorView.updateListener.of((update) => {
-          if (update.docChanged) {
-            this.handleEditorChange(update.state.doc.toString());
-          }
-        }),
-      ],
+      extensions: buildCodeMirrorExtensions({
+        onDocChange: (newDoc: string) => this.handleEditorChange(newDoc),
+        onImageDropOrPaste: (file: File) => this.handleImageUpload(file),
+        isVimMode: this.isVimMode(),
+      }),
     });
 
     this.editorView = new EditorView({
@@ -434,16 +314,16 @@ export class MainLayoutComponent implements OnDestroy {
   }
 
   private async updatePreview(rawMarkdown: string): Promise<void> {
-    const html = await markedInstance.parse(rawMarkdown);
-    const clickableHtml = html.replace(/<input([^>]*?)disabled(?:="")?([^>]*?)>/g, '<input$1$2>');
-    this.parsedContent.set(this.sanitizer.bypassSecurityTrustHtml(clickableHtml));
+    const clickableHtml = await parseMarkdownToHtml(rawMarkdown);
+    const resolvedHtml = await this.attachmentService.resolveAttachmentUrlsInHtml(clickableHtml);
+    this.parsedContent.set(this.sanitizer.bypassSecurityTrustHtml(resolvedHtml));
 
-    setTimeout(() => {
-      try {
-        const mTheme = this.currentTheme() === 'theme-dark' ? 'dark' : 'default';
-        mermaid.initialize({ startOnLoad: false, theme: mTheme });
-        mermaid.run({ querySelector: '.mermaid', suppressErrors: true });
-      } catch (error) {}
+    if (this.mermaidTimer) {
+      clearTimeout(this.mermaidTimer);
+    }
+    this.mermaidTimer = setTimeout(() => {
+      const mTheme = this.themeService.currentTheme() === 'theme-dark' ? 'dark' : 'default';
+      renderMermaidDiagrams(mTheme);
     }, 50);
   }
 
@@ -457,10 +337,44 @@ export class MainLayoutComponent implements OnDestroy {
     this.viewMode.set(mode);
   }
 
+  startResizing(event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isResizing.set(true);
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const container = document.querySelector('.split-pane') as HTMLElement;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const offsetX = moveEvent.clientX - rect.left;
+      const newRatio = Math.max(15, Math.min(85, (offsetX / rect.width) * 100));
+      this.splitRatio.set(Math.round(newRatio * 10) / 10);
+    };
+
+    const onMouseUp = () => {
+      this.isResizing.set(false);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      if (isPlatformBrowser(this.platformId)) {
+        localStorage.setItem('inknote_split_ratio', this.splitRatio().toString());
+      }
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  }
+
+  resetSplitRatio(): void {
+    this.splitRatio.set(50);
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.setItem('inknote_split_ratio', '50');
+    }
+  }
+
   openItemContextMenu(event: MouseEvent, kind: ItemContextMenu['kind'], id: string, pinned = false): void {
     event.preventDefault();
     event.stopPropagation();
-    const menuWidth = 190;
+    const menuWidth = 170;
     const menuHeight = 44;
     this.contextMenu.set({
       kind,
@@ -488,26 +402,11 @@ export class MainLayoutComponent implements OnDestroy {
   }
 
   getStatusLabel(status?: NoteStatus): string {
-    const labels: Record<string, string> = {
-      'none': 'None',
-      'active': 'Active',
-      'on-hold': 'On Hold',
-      'completed': 'Completed',
-      'dropped': 'Dropped'
-    };
-    return labels[status || 'none'];
+    return STATUS_LABELS[status || 'none'] || 'None';
   }
 
-  getTagStyle(tag: string): { background: string; borderColor: string; color: string } {
-    const hash = Array.from(tag).reduce((sum, char) => sum + char.charCodeAt(0), 0);
-    const index = hash % this.tagPalette.length;
-    const selected = this.tagPalette[index];
-
-    return {
-      background: selected.background,
-      borderColor: selected.borderColor,
-      color: selected.color,
-    };
+  getTagStyle(tag: string): TagStyle {
+    return getTagStyle(tag);
   }
 
   updateStatus(status: NoteStatus): void {
@@ -526,9 +425,9 @@ export class MainLayoutComponent implements OnDestroy {
         const note = this.store.activeNote();
         if (note) {
           const currentTags = note.tags || [];
-          this.store.updateNoteMeta(note.id, { tags: currentTags.filter(t => t !== tagToRemove) });
+          this.store.updateNoteMeta(note.id, { tags: currentTags.filter((t) => t !== tagToRemove) });
         }
-      }
+      },
     });
   }
 
@@ -559,35 +458,13 @@ export class MainLayoutComponent implements OnDestroy {
       const checkboxes = Array.from(document.querySelectorAll('.preview-content input[type="checkbox"]'));
       const index = checkboxes.indexOf(target as HTMLInputElement);
       if (index === -1) return;
+
       const currentNote = this.store.activeNote();
       if (!currentNote) return;
-      const content = currentNote.content;
-      let matchCount = 0;
-      const regex = /(```[\s\S]*?```)|^([ \t]*(?:[-*+]|\d+\.)[ \t]+\[)([ xX])(\][ \t]*)(.*)$/gm;
-      const newContent = content.replace(regex, (match, codeBlock, prefix, checkState, checkboxEnd, taskText) => {
-        if (codeBlock) return match;
-        if (matchCount === index) {
-          matchCount++;
-          const newState = checkState === ' ' ? 'x' : ' ';
-          const leadingSpace = taskText.match(/^\s*/)?.[0] ?? '';
-          const trailingSpace = taskText.match(/\s*$/)?.[0] ?? '';
-          let taskBody = taskText.slice(leadingSpace.length, taskText.length - trailingSpace.length);
 
-          if (taskBody) {
-            if (newState === 'x' && !/^~~[\s\S]+~~$/.test(taskBody)) {
-              taskBody = `~~${taskBody}~~`;
-            } else if (newState === ' ' && /^~~[\s\S]+~~$/.test(taskBody)) {
-              taskBody = taskBody.slice(2, -2);
-            }
-          }
-
-          return `${prefix}${newState}${checkboxEnd}${leadingSpace}${taskBody}${trailingSpace}`;
-        }
-        matchCount++;
-        return match;
-      });
-      if (newContent !== content) {
-        this.store.updateNoteContent(currentNote.id, newContent, currentNote.title);
+      const updated = toggleMarkdownTaskCheckbox(currentNote.content, index);
+      if (updated !== null) {
+        this.store.updateNoteContent(currentNote.id, updated, currentNote.title);
       }
     }
   }
@@ -596,14 +473,14 @@ export class MainLayoutComponent implements OnDestroy {
     const now = Date.now();
     const newFolder: Folder = { id: crypto.randomUUID(), name: 'New Folder', createdAt: now };
     this.store.addFolder(newFolder);
-    this.expandedFolders.update(set => { const newSet = new Set(set); newSet.add(newFolder.id); return newSet; });
+    this.expandedFolders.update((set) => new Set(set).add(newFolder.id));
     setTimeout(() => this.startEditFolder(new Event('click'), newFolder), 100);
   }
 
   toggleFolder(folderId: string, event?: Event): void {
     if (event) event.stopPropagation();
     this.store.setActiveFolderId(folderId);
-    this.expandedFolders.update(set => {
+    this.expandedFolders.update((set) => {
       const newSet = new Set(set);
       if (newSet.has(folderId)) newSet.delete(folderId);
       else newSet.add(folderId);
@@ -621,12 +498,18 @@ export class MainLayoutComponent implements OnDestroy {
     this.editFolderText.set(folder.name === 'New Folder' ? '' : folder.name);
     setTimeout(() => {
       const input = document.querySelector('.edit-folder-input') as HTMLInputElement;
-      if (input) { input.focus(); input.select(); }
+      if (input) {
+        input.focus();
+        input.select();
+      }
     }, 0);
   }
 
   saveFolder(folder: Folder, event?: Event): void {
-    if (event) { event.stopPropagation(); event.preventDefault(); }
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
     if (this.editingFolderId() !== folder.id) return;
     const newName = this.editFolderText().trim() || 'New Folder';
     this.editingFolderId.set(null);
@@ -638,11 +521,11 @@ export class MainLayoutComponent implements OnDestroy {
     event.stopPropagation();
     this.modal.confirm({
       nzTitle: 'Delete Folder?',
-      nzContent: 'Are you sure you want to delete this folder? All notes inside will be permanently deleted!',
+      nzContent: 'Are you sure you want to delete this folder? All notes inside will be permanently deleted.',
       nzOkText: 'Delete',
       nzOkDanger: true,
       nzCancelText: 'Cancel',
-      nzOnOk: () => this.store.deleteFolder(id)
+      nzOnOk: () => this.store.deleteFolder(id),
     });
   }
 
@@ -650,28 +533,40 @@ export class MainLayoutComponent implements OnDestroy {
     const now = Date.now();
     const folderId = targetFolderId !== undefined ? targetFolderId : this.store.activeFolderId();
     const newNote: Note = {
-      id: crypto.randomUUID(), title: 'Untitled Note', content: '',
-      folderId: folderId, createdAt: now, updatedAt: now,
+      id: crypto.randomUUID(),
+      title: 'Untitled Note',
+      content: '',
+      folderId: folderId,
+      createdAt: now,
+      updatedAt: now,
     };
     this.store.addNote(newNote);
     if (folderId) {
-      this.expandedFolders.update(set => { const newSet = new Set(set); newSet.add(folderId); return newSet; });
+      this.expandedFolders.update((set) => new Set(set).add(folderId));
     }
   }
 
   startEditTitle(event: Event, note: Note): void {
     event.stopPropagation();
-    if (this.store.activeNoteId() !== note.id) { this.store.setActiveNoteId(note.id); }
+    if (this.store.activeNoteId() !== note.id) {
+      this.store.setActiveNoteId(note.id);
+    }
     this.editingTitleId.set(note.id);
     this.editTitleText.set(note.title === 'Untitled Note' ? '' : note.title);
     setTimeout(() => {
-      const input = document.querySelector('.edit-title-input') as HTMLInputElement;
-      if (input) { input.focus(); input.select(); }
+      const input = document.querySelector('.header-edit-title-input') as HTMLInputElement;
+      if (input) {
+        input.focus();
+        input.select();
+      }
     }, 0);
   }
 
   saveTitle(note: Note, event?: Event): void {
-    if (event) { event.stopPropagation(); event.preventDefault(); }
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
     if (this.editingTitleId() !== note.id) return;
     const newTitle = this.editTitleText().trim() || 'Untitled Note';
     this.editingTitleId.set(null);
@@ -683,22 +578,159 @@ export class MainLayoutComponent implements OnDestroy {
     this.store.setActiveNoteId(id);
   }
 
+  handleFormatAction(action: FormatAction): void {
+    if (!this.editorView) return;
+    switch (action) {
+      case 'bold':
+        EditorCommands.bold(this.editorView);
+        break;
+      case 'italic':
+        EditorCommands.italic(this.editorView);
+        break;
+      case 'strikethrough':
+        EditorCommands.strikethrough(this.editorView);
+        break;
+      case 'h1':
+        EditorCommands.heading1(this.editorView);
+        break;
+      case 'h2':
+        EditorCommands.heading2(this.editorView);
+        break;
+      case 'h3':
+        EditorCommands.heading3(this.editorView);
+        break;
+      case 'bulletList':
+        EditorCommands.bulletList(this.editorView);
+        break;
+      case 'numberedList':
+        EditorCommands.numberedList(this.editorView);
+        break;
+      case 'taskList':
+        EditorCommands.taskList(this.editorView);
+        break;
+      case 'quote':
+        EditorCommands.quote(this.editorView);
+        break;
+      case 'inlineCode':
+        EditorCommands.inlineCode(this.editorView);
+        break;
+      case 'codeBlock':
+        EditorCommands.codeBlock(this.editorView);
+        break;
+      case 'link':
+        EditorCommands.link(this.editorView);
+        break;
+      case 'image':
+        this.handleImageFilePicker();
+        break;
+      case 'table':
+        EditorCommands.table(this.editorView);
+        break;
+      case 'math':
+        EditorCommands.math(this.editorView);
+        break;
+      case 'mathBlock':
+        EditorCommands.mathBlock(this.editorView);
+        break;
+      case 'mathMatrix':
+        EditorCommands.mathMatrix(this.editorView);
+        break;
+      case 'mermaid':
+        EditorCommands.mermaid(this.editorView);
+        break;
+      case 'mermaidFlowchart':
+        EditorCommands.mermaidFlowchart(this.editorView);
+        break;
+      case 'mermaidSequence':
+        EditorCommands.mermaidSequence(this.editorView);
+        break;
+      case 'mermaidClass':
+        EditorCommands.mermaidClass(this.editorView);
+        break;
+      case 'mermaidState':
+        EditorCommands.mermaidState(this.editorView);
+        break;
+      case 'mermaidEr':
+        EditorCommands.mermaidEr(this.editorView);
+        break;
+      case 'mermaidGit':
+        EditorCommands.mermaidGit(this.editorView);
+        break;
+      case 'search':
+        EditorCommands.search(this.editorView);
+        break;
+    }
+  }
+
+  async handleImageUpload(file: File): Promise<void> {
+    const currentNote = this.store.activeNote();
+    if (!currentNote) return;
+
+    const result = await this.attachmentService.saveImage(file, file.name);
+    if (this.editorView) {
+      const range = this.editorView.state.selection.main;
+      this.editorView.dispatch({
+        changes: { from: range.from, to: range.to, insert: result.markdown },
+        selection: { anchor: range.from + result.markdown.length },
+      });
+      this.editorView.focus();
+    }
+  }
+
+  handleImageFilePicker(): void {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e: Event) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        await this.handleImageUpload(file);
+      }
+    };
+    input.click();
+  }
+
+  toggleToc(): void {
+    this.isTocOpen.update((open) => !open);
+  }
+
+  handleTocSelect(item: TocItem): void {
+    if (this.editorView && item.line <= this.editorView.state.doc.lines) {
+      const line = this.editorView.state.doc.line(item.line);
+      this.editorView.dispatch({
+        selection: { anchor: line.from },
+        scrollIntoView: true,
+      });
+      this.editorView.focus();
+    }
+  }
+
+  selectTrash(): void {
+    this.store.setIsTrashSelected(true);
+  }
+
   deleteNote(id: string, event: Event): void {
     event.stopPropagation();
     this.modal.confirm({
-      nzTitle: 'Delete Note?',
-      nzContent: 'Are you sure you want to delete this note?',
-      nzOkText: 'Delete',
+      nzTitle: 'Move to Trash?',
+      nzContent: 'Are you sure you want to move this note to Trash? You can restore it anytime.',
+      nzOkText: 'Move to Trash',
       nzOkDanger: true,
       nzCancelText: 'Cancel',
-      nzOnOk: () => this.store.deleteNote(id)
+      nzOnOk: () => this.store.moveToTrash(id),
     });
   }
 
-  getSnippet(content: string): string {
-    if (!content) return 'No content';
-    const plainText = content.replace(/[#*`_>[\]]/g, '').trim();
-    return plainText.length > 40 ? `${plainText.substring(0, 40)}...` : plainText;
+  restoreTrashedNote(id: string): void {
+    this.store.restoreNote(id);
+  }
+
+  deletePermanently(id: string): void {
+    this.store.deletePermanently(id);
+  }
+
+  emptyTrash(): void {
+    this.store.emptyTrash();
   }
 
   async openFile(): Promise<void> {
@@ -709,26 +741,70 @@ export class MainLayoutComponent implements OnDestroy {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
       const content = await file.text();
-      const title = file.name.replace(/\.[^/.]+$/, "");
+      const title = file.name.replace(/\.[^/.]+$/, '');
       const now = Date.now();
       const newNote: Note = {
-        id: crypto.randomUUID(), title: title || 'Untitled Note', content: content,
-        folderId: this.store.activeFolderId(), createdAt: now, updatedAt: now,
+        id: crypto.randomUUID(),
+        title: title || 'Untitled Note',
+        content: content,
+        folderId: this.store.activeFolderId(),
+        createdAt: now,
+        updatedAt: now,
       };
       this.store.addNote(newNote);
     };
     input.click();
   }
 
+  @HostListener('window:keydown', ['$event'])
+  handleGlobalKeydown(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && event.key === '\\') {
+      event.preventDefault();
+      this.toggleSidebar();
+    } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'p') {
+      event.preventDefault();
+      this.printNote();
+    }
+  }
+
+  toggleSidebar(): void {
+    this.isSidebarCollapsed.update((c) => !c);
+  }
+
+  setNoteSortBy(sortBy: 'updated' | 'created' | 'title'): void {
+    this.noteSortBy.set(sortBy);
+  }
+
   exportFile(): void {
     const currentNote = this.store.activeNote();
     if (!currentNote) return;
-    const blob = new Blob([currentNote.content], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${currentNote.title || 'Untitled Note'}.md`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    exportMarkdownFile(currentNote.title, currentNote.content);
+  }
+
+  async exportHtml(): Promise<void> {
+    const currentNote = this.store.activeNote();
+    if (!currentNote) return;
+    const rawHtml = await parseMarkdownToHtml(currentNote.content);
+    const resolvedHtml = await this.attachmentService.resolveAttachmentUrlsInHtml(rawHtml);
+    exportHtmlFile(currentNote.title, resolvedHtml);
+    this.message.success('HTML file exported successfully!');
+  }
+
+  async copyFormattedHtml(): Promise<void> {
+    const currentNote = this.store.activeNote();
+    if (!currentNote) return;
+    const rawHtml = await parseMarkdownToHtml(currentNote.content);
+    const resolvedHtml = await this.attachmentService.resolveAttachmentUrlsInHtml(rawHtml);
+    const success = await copyHtmlToClipboard(resolvedHtml);
+    if (success) {
+      this.message.success('Formatted HTML copied to clipboard!');
+    } else {
+      this.message.error('Failed to copy to clipboard.');
+    }
+  }
+
+  printNote(): void {
+    window.print();
   }
 
   async openFolder(): Promise<void> {
@@ -747,15 +823,19 @@ export class MainLayoutComponent implements OnDestroy {
         const file = files[i];
         if (file.name.endsWith('.md') || file.name.endsWith('.txt')) {
           const content = await file.text();
-          const title = file.name.replace(/\.[^/.]+$/, "");
+          const title = file.name.replace(/\.[^/.]+$/, '');
           const newNote: Note = {
-            id: crypto.randomUUID(), title: title || 'Untitled Note', content: content,
-            folderId: newFolder.id, createdAt: Date.now(), updatedAt: Date.now(),
+            id: crypto.randomUUID(),
+            title: title || 'Untitled Note',
+            content: content,
+            folderId: newFolder.id,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
           };
           this.store.addNote(newNote);
         }
       }
-      this.expandedFolders.update(set => { const newSet = new Set(set); newSet.add(newFolder.id); return newSet; });
+      this.expandedFolders.update((set) => new Set(set).add(newFolder.id));
       this.store.setActiveFolderId(newFolder.id);
     };
     input.click();
@@ -763,19 +843,91 @@ export class MainLayoutComponent implements OnDestroy {
 
   async exportFolder(folder: Folder, event: Event): Promise<void> {
     event.stopPropagation();
-    const notesInFolder = this.store.notes().filter(n => n.folderId === folder.id);
-    if (notesInFolder.length === 0) return;
+    const notesInFolder = this.store.notes().filter((n) => n.folderId === folder.id);
+    await exportFolderAsZip(folder.name, notesInFolder);
+  }
 
-    const zip = new JSZip();
-    notesInFolder.forEach(note => {
-      const safeTitle = (note.title || 'Untitled Note').replace(/[\\/:*?"<>|]/g, '');
-      zip.file(`${safeTitle}.md`, note.content);
-    });
-    const blob = await zip.generateAsync({ type: 'blob' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${folder.name}.zip`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  /* --- VIM KEYBINDINGS MODE --- */
+  toggleVimMode(): void {
+    const next = !this.isVimMode();
+    this.isVimMode.set(next);
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.setItem('inknote_vim_mode', String(next));
+    }
+    if (this.editorView) {
+      this.editorView.dispatch({
+        effects: vimCompartment.reconfigure(next ? vim({ status: true }) : []),
+      });
+    }
+    this.message.info(next ? 'Vim Mode: Enabled' : 'Vim Mode: Disabled');
+  }
+
+  /* --- FULL WORKSPACE BACKUP & RESTORE --- */
+  async exportBackup(): Promise<void> {
+    try {
+      const attachments = await this.attachmentService.getAllStoredAttachments();
+      await exportWorkspaceBackup(this.store.folders(), this.store.notes(), attachments);
+      this.message.success('Workspace backup exported successfully');
+    } catch (err) {
+      this.message.error('Failed to export backup: ' + (err as Error).message);
+    }
+  }
+
+  triggerRestoreBackup(): void {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json, application/json';
+    input.onchange = async (e: Event) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      try {
+        const backup = await parseWorkspaceBackup(file);
+        const folderCount = backup.folders.length;
+        const noteCount = backup.notes.length;
+
+        this.modal.confirm({
+          nzTitle: 'Restore Workspace Backup',
+          nzContent: `Found ${noteCount} note(s) and ${folderCount} notebook(s) in backup.\nDo you want to overwrite your current notes or merge them?`,
+          nzOkText: 'Replace / Overwrite',
+          nzOkDanger: true,
+          nzCancelText: 'Merge Notes',
+          nzOnOk: async () => {
+            await this.processRestore(backup, true);
+          },
+          nzOnCancel: async () => {
+            await this.processRestore(backup, false);
+          },
+        });
+      } catch (err) {
+        this.modal.error({
+          nzTitle: 'Invalid Backup File',
+          nzContent: 'The selected file is not a valid InkNote JSON backup: ' + (err as Error).message,
+        });
+      }
+    };
+    input.click();
+  }
+
+  private async processRestore(backup: InkNoteBackup, overwrite: boolean): Promise<void> {
+    try {
+      const attachments: StoredAttachment[] = [];
+      if (backup.attachments && backup.attachments.length > 0) {
+        for (const att of backup.attachments) {
+          attachments.push({
+            id: att.id,
+            name: att.name,
+            mimeType: att.mimeType,
+            data: base64ToBlob(att.dataBase64, att.mimeType),
+            createdAt: att.createdAt,
+          });
+        }
+      }
+
+      await this.store.importBackup(backup.folders, backup.notes, attachments, overwrite);
+      this.message.success(`Restored ${backup.notes.length} note(s) successfully!`);
+    } catch (err) {
+      this.message.error('Restore failed: ' + (err as Error).message);
+    }
   }
 }

@@ -1,0 +1,82 @@
+<div class="trash-view-container">
+  <div class="trash-header">
+    <div class="trash-header-info">
+      <div class="trash-header-icon-box">
+        <span nz-icon nzType="delete" class="trash-title-icon"></span>
+      </div>
+      <div>
+        <h1 class="trash-title">Trash</h1>
+        <p class="trash-subtitle">
+          Notes moved to trash can be restored or permanently removed.
+        </p>
+      </div>
+    </div>
+
+    @if (notes.length > 0) {
+      <button nz-button nzDanger nzType="default" class="empty-trash-btn" (click)="confirmEmptyTrash()">
+        <span nz-icon nzType="clear"></span>
+        Empty Trash ({{ notes.length }})
+      </button>
+    }
+  </div>
+
+  <div class="trash-content">
+    @if (notes.length === 0) {
+      <div class="trash-empty-state">
+        <div class="empty-icon-circle">
+          <span nz-icon nzType="rest" class="empty-icon"></span>
+        </div>
+        <h2>Trash is empty</h2>
+        <p>No deleted notes found. Items moved to trash will appear here.</p>
+      </div>
+    } @else {
+      <div class="trash-grid">
+        @for (note of notes; track note.id) {
+          <div class="trash-card">
+            <div class="trash-card-body">
+              <div class="trash-card-header">
+                <span nz-icon nzType="file-markdown" class="card-icon"></span>
+                <h3 class="trash-card-title">{{ note.title || 'Untitled Note' }}</h3>
+              </div>
+
+              <p class="trash-card-snippet">{{ getNoteSnippet(note.content) || 'No additional text' }}</p>
+
+              <div class="trash-card-meta">
+                <span class="deleted-time">Deleted {{ formatTime(note.trashedAt || note.updatedAt) }}</span>
+              </div>
+            </div>
+
+            <div class="trash-card-actions">
+              <button
+                nz-button
+                nzType="text"
+                nzSize="small"
+                class="restore-btn"
+                nz-tooltip
+                nzTooltipTitle="Restore Note"
+                (click)="confirmRestore(note)"
+              >
+                <span nz-icon nzType="undo"></span>
+                Restore
+              </button>
+              <button
+                nz-button
+                nzType="text"
+                nzDanger
+                nzSize="small"
+                class="delete-btn"
+                nz-tooltip
+                nzTooltipTitle="Delete Permanently"
+                (click)="confirmDeletePermanently(note)"
+              >
+                <span nz-icon nzType="delete"></span>
+                Delete Forever
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>
+

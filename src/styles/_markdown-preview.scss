@@ -1,0 +1,157 @@
+/* ==========================================================================
+   MARKDOWN PREVIEW & CODE BLOCKS (和風原稿プレビュー)
+   ========================================================================== */
+
+.custom-code-block {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin: 1.8em 0;
+  overflow: hidden;
+  background-color: var(--bg-code);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+
+  .code-block-header {
+    background-color: var(--bg-menu);
+    border-bottom: 1px solid var(--border-color);
+    padding: 8px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .code-title {
+      color: var(--text-heading);
+      font-weight: 600;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+
+      .anticon { color: var(--text-muted); }
+    }
+
+    .code-filename {
+      color: var(--text-muted);
+      font-family: 'SFMono-Regular', Consolas, Menlo, monospace;
+      font-size: 11px;
+    }
+  }
+
+  pre {
+    margin: 0;
+    border-radius: 0;
+    border: none;
+    padding: 14px 16px;
+    background: transparent;
+  }
+}
+
+.preview-content {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+  font-size: 15px;
+  line-height: 1.85;
+  letter-spacing: 0.015em;
+  color: var(--text-main);
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 32px 64px 32px;
+
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--text-heading);
+    margin-top: 1.9em;
+    margin-bottom: 0.6em;
+    line-height: 1.4;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  h1 {
+    font-size: 1.85em;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.4em;
+  }
+
+  h2 {
+    font-size: 1.5em;
+    border-left: 3px solid var(--sidebar-active-text);
+    padding-left: 10px;
+  }
+
+  h3 { font-size: 1.25em; }
+  h4 { font-size: 1.1em; }
+  h5, h6 { font-size: 1em; }
+
+  p, ul, ol, table {
+    color: var(--text-main);
+    margin-bottom: 1.2em;
+  }
+
+  a {
+    color: var(--hl-link);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    &:hover { opacity: 0.8; }
+  }
+
+  code {
+    background-color: var(--bg-code);
+    padding: 0.2em 0.45em;
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: var(--hl-code);
+    font-family: 'SFMono-Regular', Consolas, Menlo, monospace;
+  }
+
+  pre code {
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
+    border-radius: 0;
+  }
+
+  /* Highlight.js color mapping */
+  .hljs-comment, .hljs-quote { color: var(--hl-comment); font-style: italic; }
+  .hljs-keyword, .hljs-selector-tag, .hljs-built_in, .hljs-type { color: var(--hl-keyword); }
+  .hljs-title, .hljs-title.function_, .hljs-title.class_ { color: var(--hl-function); font-weight: 600; }
+  .hljs-string, .hljs-regexp, .hljs-meta .hljs-string, .hljs-addition { color: var(--hl-string); }
+  .hljs-number, .hljs-literal { color: var(--hl-number); }
+  .hljs-attr, .hljs-attribute, .hljs-property { color: var(--hl-property); }
+  .hljs-tag, .hljs-punctuation, .hljs-operator { color: var(--hl-punct); }
+  .hljs-name { color: var(--hl-heading); font-weight: 600; }
+  .hljs-variable, .hljs-params { color: var(--text-main); }
+  .hljs-symbol, .hljs-bullet { color: var(--hl-meta); }
+  .hljs-deletion { color: var(--hl-del); }
+
+  blockquote {
+    border-left: 3px solid var(--border-color);
+    padding: 6px 16px;
+    color: var(--text-muted);
+    margin: 1.5em 0;
+    background: rgba(128, 128, 128, 0.03);
+    border-radius: 0 4px 4px 0;
+  }
+
+  li {
+    margin-bottom: 6px;
+    &:has(> input[type="checkbox"]), &.task-list-item {
+      list-style-type: none !important;
+      margin-left: -20px;
+    }
+  }
+
+  input[type="checkbox"] {
+    margin-right: 8px;
+    cursor: pointer;
+    accent-color: var(--sidebar-active-text);
+    transform: scale(1.1);
+    position: relative;
+    top: 1px;
+  }
+
+  ul ul li::marker,
+  ol ol li::marker,
+  ul ol li::marker,
+  ol ul li::marker {
+    color: var(--hl-sublist);
+  }
+}
+

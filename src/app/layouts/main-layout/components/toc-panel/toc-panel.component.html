@@ -1,0 +1,38 @@
+<aside class="toc-panel">
+  <div class="toc-header">
+    <div class="toc-header-title">
+      <span nz-icon nzType="profile" class="header-icon"></span>
+      <span class="title-text">Outline</span>
+      <span class="count-badge">{{ items.length }}</span>
+    </div>
+    <button type="button" class="close-btn" nz-tooltip nzTooltipTitle="Close Outline" (click)="onClose()">
+      <span nz-icon nzType="close"></span>
+    </button>
+  </div>
+
+  <div class="toc-body">
+    @if (items.length === 0) {
+      <div class="toc-empty">
+        <span nz-icon nzType="file-text" class="empty-icon"></span>
+        <p class="empty-title">No headings found</p>
+        <p class="empty-hint">Use # Heading to create an outline for this note.</p>
+      </div>
+    } @else {
+      <nav class="toc-list">
+        @for (item of items; track item.id) {
+          <a
+            class="toc-item level-{{ item.level }}"
+            [style.padding-left.px]="(item.level - 1) * 12 + 12"
+            (click)="onSelect(item)"
+            [title]="item.text"
+          >
+            <span class="toc-marker">H{{ item.level }}</span>
+            <span class="toc-text">{{ item.text }}</span>
+            <span class="toc-line">L{{ item.line }}</span>
+          </a>
+        }
+      </nav>
+    }
+  </div>
+</aside>
+

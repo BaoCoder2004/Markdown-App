@@ -1,11 +1,75 @@
-/* Nạp giao diện chuẩn của NG-ZORRO */
-@import 'ng-zorro-antd/ng-zorro-antd.min.css';
+@use 'ng-zorro-antd/ng-zorro-antd.min.css';
+@use './styles/themes' as *;
+@use './styles/modals' as *;
+@use './styles/markdown-preview' as *;
 
 /* Cài đặt reset cơ bản cho toàn trang */
 html, body {
   margin: 0;
   padding: 0;
   height: 100%;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background-color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+  background-color: var(--bg-base);
+  color: var(--text-main);
+  overflow: hidden;
+}
+
+/* =========================================
+   PRINT & PDF EXPORT STYLES (A4 Layout)
+   ========================================= */
+@media print {
+  @page {
+    size: A4;
+    margin: 18mm 16mm 18mm 16mm;
+  }
+
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    color: #1a1a1a !important;
+  }
+
+  .zen-topbar,
+  .sidebar,
+  .workspace-header,
+  .format-toolbar,
+  .split-resizer,
+  .editor-pane,
+  .toc-panel,
+  .item-context-menu {
+    display: none !important;
+  }
+
+  .app-container,
+  .main-layout,
+  .workspace,
+  .workspace-body,
+  .split-pane,
+  .preview-pane {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    width: 100% !important;
+    background: #ffffff !important;
+    border: none !important;
+  }
+
+  .preview-content {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    color: #1a1a1a !important;
+    font-size: 11pt !important;
+    line-height: 1.65 !important;
+
+    h1, h2, h3, h4, h5, h6 {
+      color: #000000 !important;
+      page-break-after: avoid;
+    }
+
+    pre, blockquote, table, img, .custom-code-block {
+      page-break-inside: avoid;
+    }
+  }
 }

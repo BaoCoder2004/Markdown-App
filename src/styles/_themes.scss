@@ -1,0 +1,129 @@
+/* ==========================================================================
+   JAPANESE AESTHETIC PALETTES (日本の伝統色 & 和風ミニマリズム)
+   Theme 1: Washi (和紙 - Delicate Paper / Light)
+   Theme 2: Yoru / Sumi-kuro (夜・墨黒 - Tranquil Charcoal / Dark)
+   Theme 3: Kissa (喫茶・抹茶 - Kyoto Teahouse & Tatami Linen / Warm)
+   ========================================================================== */
+
+body {
+  /* THEME 1: WASHI (和紙 - Light Natural Paper) */
+  --bg-base: #fbfaf8;          /* Tone giấy Washi tự nhiên, giảm chói mắt tuyệt đối */
+  --bg-sidebar: #f4f1eb;       /* Tone tre/gỗ nhẹ cho thanh sidebar */
+  --bg-toolbar: #fbfaf8;
+  --bg-menu: #f7f4ee;
+  --bg-hover: #ebe6dc;
+  --bg-active: #e3ecf5;
+  --sidebar-active-text: #204969; /* Xanh chàm Aizome truyền thống */
+  --border-color: #e5dfd5;     /* Viền đá thạch nhẹ nhàng */
+  --text-main: #2b2a28;        /* Mực Sumi tự nhiên, không đen gắt */
+  --text-heading: #1c1b1a;
+  --text-muted: #7d7a74;       /* Mực Usuzumi mỏng */
+  --selection-bg: #dbe7f3;
+  --editor-caret-color: #2b4c7e;
+
+  /* Syntax Highlighting: Điềm đạm, tinh tế */
+  --hl-heading: #204969;       /* Aizome (Chàm đậm) */
+  --hl-strong: #1c1b1a;
+  --hl-em: #383633;
+  --hl-del: #a35a64;
+  --hl-link: #2b6194;
+  --hl-code: #844c45;          /* Kogecha (Nâu đỏ trà) */
+  --bg-code: #ede8df;
+  --hl-comment: #8c8880;
+  --hl-meta: #3d688d;
+  --hl-punct: #6e6b65;
+  --hl-string: #3b6e4e;        /* Rikyu Matcha (Xanh trà matcha) */
+  --hl-keyword: #8c4250;       /* Azuki (Đậu đỏ nhật) */
+  --hl-number: #2b6194;
+  --hl-property: #366052;
+  --hl-bool: #6f528a;          /* Fuji Murasaki (Tím hoa tử đằng) */
+  --hl-operator: #8c4250;
+  --hl-function: #345c85;
+  --hl-dollar: #2b6194;
+  --hl-hash: #6b7785;
+  --hl-checkbox: #3b6e4e;
+  --hl-sublist: #85613c;
+  --hl-sublist-editor: #366052;
+
+  /* THEME 2: YORU / SUMI-KURO (夜・墨黒 - Dark Zen Charcoal) */
+  &.theme-dark {
+    --bg-base: #18191b;        /* Đá mài mực Sumi sâu lắng, không đen mù */
+    --bg-sidebar: #131415;     /* Sidebar tối tĩnh mịch */
+    --bg-toolbar: #18191b;
+    --bg-menu: #1c1d1f;
+    --bg-hover: #26282b;
+    --bg-active: #222c38;
+    --sidebar-active-text: #8db5e6;
+    --border-color: #292b2f;   /* Đường phân cách tối giản */
+    --text-main: #d8d6d2;      /* Sáng dịu như ánh trăng (Shirafuji) */
+    --text-heading: #f0eee9;
+    --text-muted: #858480;
+    --selection-bg: rgba(141, 181, 230, 0.22);
+    --editor-caret-color: #8db5e6;
+
+    /* Syntax Highlighting ban đêm: Mềm mắt, không phát sáng chói lọi */
+    --hl-heading: #98b9e3;     /* Lam nhạt */
+    --hl-strong: #dedbd6;
+    --hl-em: #b3b1ad;
+    --hl-del: #d1828c;
+    --hl-link: #8db5e6;
+    --hl-code: #e0b484;        /* Hổ phách dịu */
+    --bg-code: rgba(255, 255, 255, 0.06);
+    --hl-comment: #747578;
+    --hl-meta: #d4a774;
+    --hl-punct: #9ea0a6;
+    --hl-string: #8fc49c;      /* Xanh lá trúc ban đêm */
+    --hl-keyword: #d98d9e;     /* Hoa anh đào nhạt */
+    --hl-number: #9bbfe3;
+    --hl-property: #7ec4b3;
+    --hl-bool: #bca0db;
+    --hl-operator: #91b5d6;
+    --hl-function: #98b9e3;
+    --hl-dollar: #8db5e6;
+    --hl-hash: #6b7785;
+    --hl-checkbox: #8fc49c;
+    --hl-sublist: #d4a774;
+    --hl-sublist-editor: #7ec4b3;
+  }
+
+  /* THEME 3: KISSA (喫茶・抹茶 - Kyoto Teahouse & Linen / Warm) */
+  &.theme-cream {
+    --bg-base: #f5f0e6;        /* Tone vải lanh/vải đay mộc mạc thư thái */
+    --bg-sidebar: #eae3d5;     /* Màu mành tre đan */
+    --bg-toolbar: #f5f0e6;
+    --bg-menu: #eee8dc;
+    --bg-hover: #e0d7c6;
+    --bg-active: #dce5dd;
+    --sidebar-active-text: #2f543d; /* Xanh trà Matcha đậm */
+    --border-color: #ddd4c4;
+    --text-main: #332d26;      /* Nâu than trầm ấm */
+    --text-heading: #241f19;
+    --text-muted: #7c7365;
+    --selection-bg: #d7e6dc;
+    --editor-caret-color: #3b664a;
+
+    /* Syntax Highlighting phòng trà: Gam màu trà, lá sen khô, gỗ trầm */
+    --hl-heading: #2f543d;     /* Matcha đậm */
+    --hl-strong: #241f19;
+    --hl-em: #4a4237;
+    --hl-del: #9e5b53;
+    --hl-link: #30655d;
+    --hl-code: #824733;        /* Đất nung Bizen */
+    --bg-code: #e7dfd0;
+    --hl-comment: #8f8576;
+    --hl-meta: #7c5836;
+    --hl-punct: #6e6456;
+    --hl-string: #3b664a;      /* Lá tre / Matcha */
+    --hl-keyword: #9e4b47;     /* Đỏ Akane trầm */
+    --hl-number: #38606e;
+    --hl-property: #336152;
+    --hl-bool: #674c73;
+    --hl-operator: #875344;
+    --hl-function: #3c5d6e;
+    --hl-dollar: #38606e;
+    --hl-hash: #7d7364;
+    --hl-checkbox: #3b664a;
+    --hl-sublist: #7c5836;
+    --hl-sublist-editor: #336152;
+  }
+}

@@ -1,67 +1,144 @@
-<div class="app-container" [ngClass]="currentTheme()" (click)="closeContextMenu()" (contextmenu)="closeContextMenu()">
+<div class="app-container" [ngClass]="themeService.currentTheme()" (click)="closeContextMenu()" (contextmenu)="closeContextMenu()">
   @if (contextMenu(); as menu) {
     <div class="item-context-menu" [style.left.px]="menu.x" [style.top.px]="menu.y" (click)="$event.stopPropagation()" (contextmenu)="$event.preventDefault(); $event.stopPropagation()">
       <button type="button" class="item-context-menu-action" (click)="toggleContextItemPinned()">
         <span nz-icon nzType="pushpin"></span>
-        {{ menu.pinned ? 'Unpin' : 'Pin' }} {{ menu.kind }}
+        {{ menu.pinned ? 'Unpin' : 'Pin' }}
       </button>
     </div>
   }
-  <div class="menu-bar">
-    <div class="menu-item" nz-dropdown [nzDropdownMenu]="fileMenu" nzTrigger="click">File</div>
-    <nz-dropdown-menu #fileMenu="nzDropdownMenu">
-      <ul nz-menu>
-        <li nz-menu-item (click)="createNewNote(null)">New File (Root)</li>
-        <li nz-menu-item (click)="createNewFolder()">New Folder</li>
-        <li nz-menu-divider></li>
-        <li nz-menu-item (click)="openFile()">Open File...</li>
-        <li nz-menu-item (click)="openFolder()">Open Folder...</li>
-        <li nz-menu-divider></li>
-        <li nz-menu-item (click)="exportFile()">Save File (Export)</li>
-      </ul>
-    </nz-dropdown-menu>
 
-    <div class="menu-item" nz-dropdown [nzDropdownMenu]="viewMenu" nzTrigger="click">View</div>
-    <nz-dropdown-menu #viewMenu="nzDropdownMenu">
-      <ul nz-menu>
-        <li nz-menu-item (click)="setTheme('theme-default')">
-          <span nz-icon nzType="check" [style.visibility]="currentTheme() === 'theme-default' ? 'visible' : 'hidden'"></span> Giao diện Trắng (Mặc định)
-        </li>
-        <li nz-menu-item (click)="setTheme('theme-dark')">
-          <span nz-icon nzType="check" [style.visibility]="currentTheme() === 'theme-dark' ? 'visible' : 'hidden'"></span> Giao diện Tối
-        </li>
-        <li nz-menu-item (click)="setTheme('theme-cream')">
-          <span nz-icon nzType="check" [style.visibility]="currentTheme() === 'theme-cream' ? 'visible' : 'hidden'"></span> Giao diện Kem (Bảo vệ mắt)
-        </li>
-      </ul>
-    </nz-dropdown-menu>
+  <!-- TOP APP BAR -->
+  <header class="zen-topbar">
+    <div class="topbar-left">
+      <button type="button" class="sidebar-toggle-btn" (click)="toggleSidebar()" nz-tooltip [nzTooltipTitle]="isSidebarCollapsed() ? 'Show Sidebar (Ctrl+\\)' : 'Hide Sidebar (Ctrl+\\)'">
+        <span nz-icon [nzType]="isSidebarCollapsed() ? 'menu-unfold' : 'menu-fold'"></span>
+      </button>
 
-    <div class="menu-item">Help</div>
-  </div>
+      <div class="brand">
+        <span class="brand-badge"><span nz-icon nzType="book" nzTheme="outline"></span></span>
+        <span class="brand-text">InkNote</span>
+      </div>
 
-  <nz-layout class="main-layout">
-    <nz-sider [nzWidth]="280" nzTheme="light" class="sidebar">
-      <div class="sidebar-header">
-        <div class="logo">
-          <span nz-icon nzType="book" nzTheme="outline"></span>
-          <span class="logo-text">Markdown App</span>
+      <nav class="zen-menu">
+        <div class="menu-trigger" nz-dropdown [nzDropdownMenu]="fileMenu" nzTrigger="click">
+          File
         </div>
-        <button nz-button nzType="text" nzSize="small" nzTooltipTitle="New Folder" nzTooltipPlacement="bottom" (click)="createNewFolder()" class="btn-new">
-          <span nz-icon nzType="folder-add"></span>
+        <nz-dropdown-menu #fileMenu="nzDropdownMenu">
+          <ul nz-menu>
+            <li nz-menu-item (click)="createNewNote(null)">
+              <span nz-icon nzType="form"></span> New Note
+            </li>
+            <li nz-menu-item (click)="createNewFolder()">
+              <span nz-icon nzType="folder-add"></span> New Folder
+            </li>
+            <li nz-menu-divider></li>
+            <li nz-menu-item (click)="openFile()">
+              <span nz-icon nzType="file"></span> Open File...
+            </li>
+            <li nz-menu-item (click)="openFolder()">
+              <span nz-icon nzType="folder-open"></span> Open Folder...
+            </li>
+            <li nz-menu-divider></li>
+            <li nz-menu-item (click)="exportFile()">
+              <span nz-icon nzType="download"></span> Export Note (.md)
+            </li>
+            <li nz-menu-item (click)="exportHtml()">
+              <span nz-icon nzType="file-text"></span> Export as HTML (.html)
+            </li>
+            <li nz-menu-item (click)="copyFormattedHtml()">
+              <span nz-icon nzType="copy"></span> Copy Formatted HTML
+            </li>
+            <li nz-menu-divider></li>
+            <li nz-menu-item (click)="printNote()">
+              <span nz-icon nzType="printer"></span> Print / Save as PDF (Ctrl+P)
+            </li>
+            <li nz-menu-divider></li>
+            <li nz-menu-item (click)="exportBackup()">
+              <span nz-icon nzType="cloud-download"></span> Backup Workspace (.json)
+            </li>
+            <li nz-menu-item (click)="triggerRestoreBackup()">
+              <span nz-icon nzType="cloud-upload"></span> Restore Backup...
+            </li>
+          </ul>
+        </nz-dropdown-menu>
+
+      </nav>
+    </div>
+
+    <!-- QUICK THEME TOGGLE ON TOP RIGHT -->
+    <div class="topbar-right">
+      <div class="theme-quick-switch">
+        <button type="button" class="theme-pill" [class.active]="themeService.currentTheme() === 'theme-default'" (click)="setTheme('theme-default')" nz-tooltip nzTooltipTitle="Washi (Light Paper)">
+          <span class="theme-dot washi"></span>
+          <span>Light</span>
+        </button>
+        <button type="button" class="theme-pill" [class.active]="themeService.currentTheme() === 'theme-dark'" (click)="setTheme('theme-dark')" nz-tooltip nzTooltipTitle="Sumi (Charcoal Dark)">
+          <span class="theme-dot sumi"></span>
+          <span>Dark</span>
+        </button>
+        <button type="button" class="theme-pill" [class.active]="themeService.currentTheme() === 'theme-cream'" (click)="setTheme('theme-cream')" nz-tooltip nzTooltipTitle="Kissa (Warm Linen)">
+          <span class="theme-dot kissa"></span>
+          <span>Warm</span>
         </button>
       </div>
 
-      <div class="sidebar-search">
-        <nz-input-group nzPrefixIcon="search">
-          <input type="text" nz-input placeholder="Filter by note..." [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" />
-        </nz-input-group>
+      <button nz-button nzType="text" nzSize="small" class="topbar-action-btn" nz-tooltip nzTooltipTitle="New Note" (click)="createNewNote()">
+        <span nz-icon nzType="plus"></span>
+      </button>
+    </div>
+  </header>
 
-        <!-- SỬA TIẾNG TRUNG BẰNG nzNotFoundContent -->
-        <nz-select nzAllowClear nzPlaceHolder="Filter by tag..." nzNotFoundContent="No tags found" [ngModel]="selectedTag()" (ngModelChange)="selectedTag.set($event)" class="tag-filter">
-          @for (tag of allTags(); track tag) {
-            <nz-option [nzValue]="tag" [nzLabel]="tag"></nz-option>
+  <nz-layout class="main-layout">
+    <!-- SIDEBAR -->
+    <nz-sider [nzWidth]="270" [nzCollapsed]="isSidebarCollapsed()" [nzCollapsedWidth]="0" [nzTrigger]="null" nzTheme="light" class="sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-title">Notes</span>
+        <div class="sidebar-header-actions">
+          <button nz-button nzType="text" nzSize="small" nz-dropdown [nzDropdownMenu]="sortMenu" nzPlacement="bottomRight" nz-tooltip nzTooltipTitle="Sort Notes" class="icon-btn">
+            <span nz-icon nzType="sort-ascending"></span>
+          </button>
+          <nz-dropdown-menu #sortMenu="nzDropdownMenu">
+            <ul nz-menu>
+              <li nz-menu-item (click)="setNoteSortBy('updated')">
+                <span nz-icon nzType="check" [style.visibility]="noteSortBy() === 'updated' ? 'visible' : 'hidden'"></span>
+                Recently Updated
+              </li>
+              <li nz-menu-item (click)="setNoteSortBy('created')">
+                <span nz-icon nzType="check" [style.visibility]="noteSortBy() === 'created' ? 'visible' : 'hidden'"></span>
+                Date Created
+              </li>
+              <li nz-menu-item (click)="setNoteSortBy('title')">
+                <span nz-icon nzType="check" [style.visibility]="noteSortBy() === 'title' ? 'visible' : 'hidden'"></span>
+                Title (A-Z)
+              </li>
+            </ul>
+          </nz-dropdown-menu>
+          <button nz-button nzType="text" nzSize="small" nz-tooltip nzTooltipTitle="New Folder" (click)="createNewFolder()" class="icon-btn">
+            <span nz-icon nzType="folder-add"></span>
+          </button>
+          <button nz-button nzType="text" nzSize="small" nz-tooltip nzTooltipTitle="New Note" (click)="createNewNote()" class="icon-btn">
+            <span nz-icon nzType="form"></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="sidebar-search">
+        <div class="search-input-wrap">
+          <span nz-icon nzType="search" class="search-icon"></span>
+          <input type="text" class="zen-search-input" placeholder="Search notes..." [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" />
+          @if (searchQuery()) {
+            <span nz-icon nzType="close-circle" class="clear-icon" (click)="searchQuery.set('')"></span>
           }
-        </nz-select>
+        </div>
+
+        @if (allTags().length > 0) {
+          <nz-select nzAllowClear nzPlaceHolder="Filter by tag..." nzNotFoundContent="No tags found" [ngModel]="selectedTag()" (ngModelChange)="selectedTag.set($event)" class="tag-filter">
+            @for (tag of allTags(); track tag) {
+              <nz-option [nzValue]="tag" [nzLabel]="'#' + tag"></nz-option>
+            }
+          </nz-select>
+        }
       </div>
 
       <div class="sidebar-content">
@@ -69,28 +146,29 @@
           <div class="folder-group">
             <div class="folder-header" [class.active]="store.activeFolderId() === folder.id" (click)="toggleFolder(folder.id, $event)" (contextmenu)="openItemContextMenu($event, 'folder', folder.id, !!folder.pinned)">
               <div class="folder-title-wrapper">
-                <span nz-icon [nzType]="(isExpanded(folder.id) || searchQuery() || selectedTag()) ? 'folder-open' : 'folder'" nzTheme="outline"></span>
+                <span nz-icon [nzType]="(isExpanded(folder.id) || searchQuery() || selectedTag()) ? 'folder-open' : 'folder'" class="folder-icon"></span>
                 @if (editingFolderId() === folder.id) {
                   <input type="text" class="edit-folder-input" [ngModel]="editFolderText()" (ngModelChange)="editFolderText.set($event)" (blur)="saveFolder(folder)" (keydown.enter)="saveFolder(folder, $event)" (click)="$event.stopPropagation()" />
                 } @else {
                   <span class="folder-name" [title]="folder.name">{{ folder.name }}</span>
+                  <span class="folder-count">{{ folder.notes.length }}</span>
                   @if (folder.pinned) {
-                    <span nz-icon nzType="pushpin" class="pinned-indicator" nzTooltipTitle="Pinned"></span>
+                    <span nz-icon nzType="pushpin" class="pinned-indicator" nz-tooltip nzTooltipTitle="Pinned"></span>
                   }
                 }
               </div>
 
               <div class="folder-actions">
-                <button nz-button nzType="text" nzSize="small" nzTooltipTitle="New Note here" (click)="createNewNote(folder.id); $event.stopPropagation()">
+                <button nz-button nzType="text" nzSize="small" nz-tooltip nzTooltipTitle="New Note" (click)="createNewNote(folder.id); $event.stopPropagation()">
                   <span nz-icon nzType="plus"></span>
                 </button>
-                <button nz-button nzType="text" nzSize="small" nzTooltipTitle="Rename" (click)="startEditFolder($event, folder)">
+                <button nz-button nzType="text" nzSize="small" nz-tooltip nzTooltipTitle="Rename" (click)="startEditFolder($event, folder)">
                   <span nz-icon nzType="edit"></span>
                 </button>
-                <button nz-button nzType="text" nzSize="small" nzTooltipTitle="Export Folder" (click)="exportFolder(folder, $event)">
+                <button nz-button nzType="text" nzSize="small" nz-tooltip nzTooltipTitle="Export Folder (.zip)" (click)="exportFolder(folder, $event)">
                   <span nz-icon nzType="download"></span>
                 </button>
-                <button nz-button nzType="text" nzDanger nzSize="small" nzTooltipTitle="Delete" (click)="deleteFolder(folder.id, $event)">
+                <button nz-button nzType="text" nzDanger nzSize="small" nz-tooltip nzTooltipTitle="Delete" (click)="deleteFolder(folder.id, $event)">
                   <span nz-icon nzType="delete"></span>
                 </button>
               </div>
@@ -102,28 +180,19 @@
                   <li class="empty-folder-text">Folder is empty</li>
                 }
                 @for (note of folder.notes; track note.id) {
-                  <li class="custom-note-item indented" [class.active-note]="store.activeNoteId() === note.id" (click)="selectNote(note.id)" (contextmenu)="openItemContextMenu($event, 'note', note.id, !!note.pinned)">
-                    <div class="note-item-content">
-                      @if (editingTitleId() === note.id) {
-                        <input type="text" class="edit-title-input" [ngModel]="editTitleText()" (ngModelChange)="editTitleText.set($event)" (blur)="saveTitle(note)" (keydown.enter)="saveTitle(note, $event)" (click)="$event.stopPropagation()" />
-                      } @else {
-                        <div class="note-title" [title]="note.title">
-                          <span class="note-title-label">{{ note.title || 'Untitled Note' }}</span>
-                          @if (note.pinned) { <span nz-icon nzType="pushpin" class="pinned-indicator" nzTooltipTitle="Pinned"></span> }
-                        </div>
-                      }
-
-                      <div class="note-meta-sidebar">
-                        <span class="note-time">{{ getRelativeTime(note.updatedAt || note.createdAt) }}</span>
-                        <span class="note-snippet">{{ getSnippet(note.content) }}</span>
-                      </div>
-
-                    </div>
-                    <div class="note-actions">
-                      <button nz-button nzType="text" nzSize="small" (click)="startEditTitle($event, note)"><span nz-icon nzType="edit"></span></button>
-                      <button nz-button nzType="text" nzDanger nzSize="small" (click)="deleteNote(note.id, $event)"><span nz-icon nzType="delete"></span></button>
-                    </div>
-                  </li>
+                  <app-note-item
+                    [note]="note"
+                    [indented]="true"
+                    [isSelected]="store.activeNoteId() === note.id"
+                    [isEditing]="editingTitleId() === note.id"
+                    [editText]="editTitleText()"
+                    (select)="selectNote($event)"
+                    (edit)="startEditTitle($event.event, $event.note)"
+                    (save)="saveTitle($event.note, $event.event)"
+                    (changeText)="editTitleText.set($event)"
+                    (delete)="deleteNote($event.id, $event.event)"
+                    (contextMenu)="openItemContextMenu($event, 'note', note.id, !!note.pinned)"
+                  />
                 }
               </ul>
             }
@@ -132,111 +201,230 @@
 
         @if (rootNotes().length > 0) {
           <div class="folder-group">
-            <div class="folder-header uncategorized" [class.active]="store.activeFolderId() === null" (click)="store.setActiveFolderId(null)">
+            <div class="folder-header uncategorized" [class.active]="store.activeFolderId() === null && !store.isTrashSelected()" (click)="store.setActiveFolderId(null)">
                <div class="folder-title-wrapper">
-                 <span nz-icon nzType="inbox" nzTheme="outline"></span>
+                 <span nz-icon nzType="inbox" class="folder-icon"></span>
                  <span class="folder-name">Uncategorized</span>
+                 <span class="folder-count">{{ rootNotes().length }}</span>
                </div>
             </div>
             <ul class="custom-note-list">
               @for (note of rootNotes(); track note.id) {
-                <li class="custom-note-item" [class.active-note]="store.activeNoteId() === note.id" (click)="selectNote(note.id)" (contextmenu)="openItemContextMenu($event, 'note', note.id, !!note.pinned)">
-                  <div class="note-item-content">
-                    @if (editingTitleId() === note.id) {
-                      <input type="text" class="edit-title-input" [ngModel]="editTitleText()" (ngModelChange)="editTitleText.set($event)" (blur)="saveTitle(note)" (keydown.enter)="saveTitle(note, $event)" (click)="$event.stopPropagation()" />
-                    } @else {
-                      <div class="note-title" [title]="note.title">
-                        <span class="note-title-label">{{ note.title || 'Untitled Note' }}</span>
-                        @if (note.pinned) { <span nz-icon nzType="pushpin" class="pinned-indicator" nzTooltipTitle="Pinned"></span> }
-                      </div>
-                    }
-
-                    <div class="note-meta-sidebar">
-                      <span class="note-time">{{ getRelativeTime(note.updatedAt || note.createdAt) }}</span>
-                      <span class="note-snippet">{{ getSnippet(note.content) }}</span>
-                    </div>
-
-                  </div>
-                  <div class="note-actions">
-                    <button nz-button nzType="text" nzSize="small" (click)="startEditTitle($event, note)"><span nz-icon nzType="edit"></span></button>
-                    <button nz-button nzType="text" nzDanger nzSize="small" (click)="deleteNote(note.id, $event)"><span nz-icon nzType="delete"></span></button>
-                  </div>
-                </li>
+                <app-note-item
+                  [note]="note"
+                  [indented]="false"
+                  [isSelected]="store.activeNoteId() === note.id && !store.isTrashSelected()"
+                  [isEditing]="editingTitleId() === note.id"
+                  [editText]="editTitleText()"
+                  (select)="selectNote($event)"
+                  (edit)="startEditTitle($event.event, $event.note)"
+                  (save)="saveTitle($event.note, $event.event)"
+                  (changeText)="editTitleText.set($event)"
+                  (delete)="deleteNote($event.id, $event.event)"
+                  (contextMenu)="openItemContextMenu($event, 'note', note.id, !!note.pinned)"
+                />
               }
             </ul>
           </div>
         }
       </div>
+
+      <!-- SIDEBAR FOOTER (TRASH BIN) -->
+      <div class="sidebar-footer">
+        <div class="trash-nav-item" [class.active]="store.isTrashSelected()" (click)="selectTrash()">
+          <div class="trash-nav-left">
+            <span nz-icon nzType="delete" class="trash-icon"></span>
+            <span class="trash-text">Trash</span>
+          </div>
+          @if (store.trashedCount() > 0) {
+            <span class="trash-count-badge">{{ store.trashedCount() }}</span>
+          }
+        </div>
+      </div>
     </nz-sider>
 
+    <!-- WORKSPACE -->
     <nz-layout>
       <nz-content class="workspace">
-        @if (store.activeNote(); as activeNote) {
-          <div class="editor-header">
-            <div class="editor-toolbar">
-              <div class="title-group">
-                <span class="current-note-title">{{ activeNote.title }}</span>
+        @if (store.isTrashSelected()) {
+          <!-- TRASH MANAGEMENT VIEW -->
+          <app-trash-view
+            [notes]="store.trashedNotes()"
+            (restore)="restoreTrashedNote($event)"
+            (deletePermanently)="deletePermanently($event)"
+            (emptyTrash)="emptyTrash()"
+          />
+        } @else if (store.activeNote(); as activeNote) {
+          <!-- ZEN WORKSPACE HEADER -->
+          <div class="workspace-header">
+            <div class="header-main-row">
+              <div class="note-title-container">
+                @if (editingTitleId() === activeNote.id) {
+                  <input type="text" class="header-edit-title-input" [ngModel]="editTitleText()" (ngModelChange)="editTitleText.set($event)" (blur)="saveTitle(activeNote)" (keydown.enter)="saveTitle(activeNote, $event)" autofocus />
+                } @else {
+                  <h1 class="header-note-title" (click)="startEditTitle($event, activeNote)" nz-tooltip nzTooltipTitle="Click to rename">
+                    {{ activeNote.title || 'Untitled Note' }}
+                    <span nz-icon nzType="edit" class="edit-hint-icon"></span>
+                  </h1>
+                }
               </div>
-              <div class="view-toggles">
-                 <button nz-button [nzType]="viewMode() === 'edit' ? 'primary' : 'default'" nzSize="small" (click)="setViewMode('edit')"><span nz-icon nzType="edit"></span></button>
-                 <button nz-button [nzType]="viewMode() === 'split' ? 'primary' : 'default'" nzSize="small" (click)="setViewMode('split')"><span nz-icon nzType="read"></span></button>
-                 <button nz-button [nzType]="viewMode() === 'preview' ? 'primary' : 'default'" nzSize="small" (click)="setViewMode('preview')"><span nz-icon nzType="eye"></span></button>
+
+              <!-- VIEW CONTROLS & OUTLINE TOGGLE -->
+              <div class="header-controls-group">
+                <button
+                  type="button"
+                  class="outline-toggle-btn"
+                  [class.active]="isTocOpen()"
+                  (click)="toggleToc()"
+                  nz-tooltip
+                  nzTooltipTitle="Table of Contents (Outline)"
+                >
+                  <span nz-icon nzType="profile"></span>
+                  <span class="outline-btn-text">Outline</span>
+                  @if (tocItems().length > 0) {
+                    <span class="toc-badge">{{ tocItems().length }}</span>
+                  }
+                </button>
+
+                <!-- VIM MODE TOGGLE -->
+                <button
+                  type="button"
+                  class="vim-toggle-btn"
+                  [class.active]="isVimMode()"
+                  (click)="toggleVimMode()"
+                  nz-tooltip
+                  [nzTooltipTitle]="isVimMode() ? 'Vim Mode: ON (Click to disable)' : 'Vim Mode: OFF (Click to enable)'"
+                >
+                  <span class="vim-pill-label">VIM</span>
+                  @if (isVimMode()) {
+                    <span class="vim-status-dot"></span>
+                  }
+                </button>
+
+                <!-- SEGMENTED VIEW MODE TOGGLE -->
+                <div class="zen-view-segmented">
+                  <button type="button" class="segment-btn" [class.active]="viewMode() === 'edit'" (click)="setViewMode('edit')">
+                    <span nz-icon nzType="edit"></span> Edit
+                  </button>
+                  <button type="button" class="segment-btn" [class.active]="viewMode() === 'split'" (click)="setViewMode('split')">
+                    <span nz-icon nzType="read"></span> Split
+                  </button>
+                  <button type="button" class="segment-btn" [class.active]="viewMode() === 'preview'" (click)="setViewMode('preview')">
+                    <span nz-icon nzType="eye"></span> Preview
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div class="meta-toolbar">
-              <a nz-dropdown [nzDropdownMenu]="statusMenu" class="status-selector" nzTrigger="click">
-                <span class="status-dot" [ngClass]="activeNote.status || 'none'"></span>
-                {{ getStatusLabel(activeNote.status) }}
-                <span nz-icon nzType="down"></span>
-              </a>
-              <nz-dropdown-menu #statusMenu="nzDropdownMenu">
-                <ul nz-menu class="status-menu">
-                  <li nz-menu-item (click)="updateStatus('none')"><span class="status-dot none"></span> None</li>
-                  <li nz-menu-item (click)="updateStatus('active')"><span class="status-dot active"></span> Active</li>
-                  <li nz-menu-item (click)="updateStatus('on-hold')"><span class="status-dot on-hold"></span> On Hold</li>
-                  <li nz-menu-item (click)="updateStatus('completed')"><span class="status-dot completed"></span> Completed</li>
-                  <li nz-menu-item (click)="updateStatus('dropped')"><span class="status-dot dropped"></span> Dropped</li>
-                </ul>
-              </nz-dropdown-menu>
+            <!-- METADATA & TAGS ROW -->
+            <div class="header-meta-row">
+              <div class="meta-left">
+                <!-- STATUS SELECTOR -->
+                <a nz-dropdown [nzDropdownMenu]="statusMenu" class="zen-status-badge" nzTrigger="click">
+                  <span class="status-dot" [ngClass]="activeNote.status || 'none'"></span>
+                  <span class="status-text">{{ getStatusLabel(activeNote.status) }}</span>
+                  <span nz-icon nzType="down" class="dropdown-arrow"></span>
+                </a>
+                <nz-dropdown-menu #statusMenu="nzDropdownMenu">
+                  <ul nz-menu class="status-menu">
+                    <li nz-menu-item (click)="updateStatus('none')"><span class="status-dot none"></span> None</li>
+                    <li nz-menu-item (click)="updateStatus('active')"><span class="status-dot active"></span> Active</li>
+                    <li nz-menu-item (click)="updateStatus('on-hold')"><span class="status-dot on-hold"></span> On Hold</li>
+                    <li nz-menu-item (click)="updateStatus('completed')"><span class="status-dot completed"></span> Completed</li>
+                    <li nz-menu-item (click)="updateStatus('dropped')"><span class="status-dot dropped"></span> Dropped</li>
+                  </ul>
+                </nz-dropdown-menu>
 
-              <div class="tags-container">
-                @for (tag of (activeNote.tags || []); track tag) {
-                  <nz-tag
-                    nzMode="closeable"
-                    (nzOnClose)="removeTag(tag)"
-                    class="custom-tag"
-                    [ngStyle]="getTagStyle(tag)"
-                  >{{ tag }}</nz-tag>
-                }
+                <span class="meta-separator">·</span>
 
-                @if (inputTagVisible()) {
-                  <input type="text" nz-input nzSize="small" class="tag-input"
-                         [ngModel]="inputTagValue()" (ngModelChange)="inputTagValue.set($event)"
-                         (blur)="handleInputTagConfirm()" (keydown.enter)="handleInputTagConfirm()"
-                         #tagInput />
-                } @else {
-                  <nz-tag class="site-tag-plus" (click)="showTagInput()">
-                    <span nz-icon nzType="plus"></span> Add Tag
-                  </nz-tag>
-                }
+                <!-- TAGS CHIPS -->
+                <div class="tags-container">
+                  @for (tag of (activeNote.tags || []); track tag) {
+                    <span class="zen-tag" [ngStyle]="getTagStyle(tag)">
+                      #{{ tag }}
+                      <span nz-icon nzType="close" class="tag-close-icon" (click)="removeTag(tag); $event.stopPropagation()"></span>
+                    </span>
+                  }
+
+                  @if (inputTagVisible()) {
+                    <input type="text" class="zen-tag-input"
+                           [ngModel]="inputTagValue()" (ngModelChange)="inputTagValue.set($event)"
+                           (blur)="handleInputTagConfirm()" (keydown.enter)="handleInputTagConfirm()"
+                           placeholder="New tag..."
+                           #tagInput />
+                  } @else {
+                    <button type="button" class="zen-add-tag-btn" (click)="showTagInput()">
+                      <span nz-icon nzType="plus"></span> Add Tag
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <!-- RIGHT: WORD/CHAR COUNT, READING TIME & LAST UPDATED -->
+              <div class="meta-right">
+                <span class="meta-stat">{{ activeNoteWordCount() }} words</span>
+                <span class="meta-separator">·</span>
+                <span class="meta-stat">{{ activeNoteCharCount() }} chars</span>
+                <span class="meta-separator">·</span>
+                <span class="meta-stat">{{ activeNoteReadingTime() }}</span>
+                <span class="meta-separator">·</span>
+                <span class="meta-stat">Updated {{ activeNoteLastUpdated() }}</span>
               </div>
             </div>
           </div>
 
-          <div class="split-pane" [ngClass]="viewMode()">
-            <div class="pane editor-pane">
-              <div #editorContainer class="codemirror-wrapper"></div>
+          <!-- WORKSPACE BODY WITH SPLIT PANE & OUTLINE DRAWER -->
+          <div class="workspace-body">
+            <div class="split-pane" [ngClass]="viewMode()" [class.is-resizing]="isResizing()">
+              <div
+                class="pane editor-pane"
+                [style.width.%]="viewMode() === 'split' ? splitRatio() : (viewMode() === 'edit' ? 100 : 0)"
+              >
+                <app-format-toolbar (action)="handleFormatAction($event)" />
+                <div #editorContainer class="codemirror-wrapper"></div>
+              </div>
+
+              @if (viewMode() === 'split') {
+                <div
+                  class="split-resizer"
+                  [class.active]="isResizing()"
+                  (mousedown)="startResizing($event)"
+                  (dblclick)="resetSplitRatio()"
+                  nz-tooltip
+                  nzTooltipTitle="Drag to resize / Double-click to reset (50%)"
+                  nzTooltipPlacement="top"
+                >
+                  <div class="resizer-handle"></div>
+                </div>
+              }
+
+              <div
+                class="pane preview-pane"
+                [style.width.%]="viewMode() === 'split' ? (100 - splitRatio()) : (viewMode() === 'preview' ? 100 : 0)"
+              >
+                 <div class="preview-content" [innerHTML]="parsedContent()" (click)="onPreviewClick($event)"></div>
+              </div>
             </div>
-            <div class="pane preview-pane">
-               <div class="preview-content" [innerHTML]="parsedContent()" (click)="onPreviewClick($event)"></div>
-            </div>
+
+            @if (isTocOpen()) {
+              <app-toc-panel
+                [items]="tocItems()"
+                (selectItem)="handleTocSelect($event)"
+                (close)="isTocOpen.set(false)"
+              />
+            }
           </div>
         } @else {
+          <!-- ZEN EMPTY STATE -->
           <div class="empty-workspace">
-            <span nz-icon nzType="folder-open" nzTheme="outline" class="empty-icon"></span>
-            <h2>No note selected</h2>
-            <p>Select a note from the sidebar or create a new one.</p>
+            <div class="empty-card">
+              <span class="empty-icon" nz-icon nzType="book" nzTheme="outline"></span>
+              <h2>No note selected</h2>
+              <p>Select a note from the sidebar or create a new note to start writing.</p>
+              <button nz-button nzType="primary" (click)="createNewNote()" class="empty-cta-btn">
+                <span nz-icon nzType="plus"></span> Create Note
+              </button>
+            </div>
           </div>
         }
       </nz-content>

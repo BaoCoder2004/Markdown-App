@@ -1,0 +1,150 @@
+/* ==========================================================================
+   Ant Design Components Theming (Modals, Dropdowns, Tooltips)
+   Synced with Japanese Zen Palette
+   ========================================================================== */
+
+.ant-modal-content {
+  background-color: var(--bg-menu) !important;
+  color: var(--text-main) !important;
+  border-radius: 10px !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+}
+
+.ant-modal-header {
+  background-color: var(--bg-menu) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  border-radius: 10px 10px 0 0 !important;
+}
+
+.ant-modal-title {
+  color: var(--text-heading) !important;
+  font-weight: 600 !important;
+}
+
+.ant-modal-close-x {
+  color: var(--text-muted) !important;
+}
+
+.ant-modal-confirm-body .ant-modal-confirm-title {
+  color: var(--text-heading) !important;
+  font-weight: 600 !important;
+}
+
+.ant-modal-confirm-body .ant-modal-confirm-content {
+  color: var(--text-main) !important;
+  font-size: 13.5px !important;
+}
+
+.ant-modal-confirm-btns .ant-btn-default {
+  background-color: var(--bg-base) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-main) !important;
+  border-radius: 6px !important;
+
+  &:hover {
+    background-color: var(--bg-hover) !important;
+    border-color: var(--text-muted) !important;
+    color: var(--text-heading) !important;
+  }
+}
+
+.ant-modal-confirm-btns .ant-btn-primary {
+  border-radius: 6px !important;
+}
+
+/* Ant Dropdowns & Menus */
+.ant-dropdown-menu {
+  background-color: var(--bg-menu) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12) !important;
+  padding: 4px !important;
+
+  .ant-dropdown-menu-item {
+    color: var(--text-main) !important;
+    border-radius: 5px !important;
+    padding: 6px 12px !important;
+    font-size: 13px !important;
+    transition: background-color 0.15s ease !important;
+
+    &:hover {
+      background-color: var(--bg-hover) !important;
+      color: var(--text-heading) !important;
+    }
+  }
+
+  .ant-dropdown-menu-item-divider {
+    background-color: var(--border-color) !important;
+  }
+}
+
+/* Ant Tooltip */
+.ant-tooltip-inner {
+  background-color: var(--text-main) !important;
+  color: var(--bg-base) !important;
+  border-radius: 5px !important;
+  font-size: 12px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+.ant-tooltip-arrow-content {
+  background-color: var(--text-main) !important;
+}
+
+/* Theme Dropdown Menu */
+.theme-dropdown {
+  .theme-color-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 8px;
+
+    &.washi-dot { background: #fbfaf8; border: 1px solid #d5cfc5; }
+    &.sumi-dot { background: #18191b; border: 1px solid #4a4d52; }
+    &.kissa-dot { background: #f5f0e6; border: 1px solid #2f543d; }
+  }
+
+  .check-icon {
+    margin-left: auto;
+    color: var(--sidebar-active-text);
+  }
+}
+
+/* Status Menu */
+.status-menu li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+/* Context Menu */
+.item-context-menu {
+  position: fixed;
+  z-index: 1200;
+  min-width: 170px;
+  padding: 4px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-menu);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+
+  .item-context-menu-action {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 32px;
+    padding: 6px 10px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-main);
+    font-size: 12.5px;
+    cursor: pointer;
+
+    &:hover { background: var(--bg-hover); }
+    [nz-icon] { color: var(--sidebar-active-text); }
+  }
+}

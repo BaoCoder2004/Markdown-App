@@ -24,7 +24,16 @@
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
-            "allowedCommonJsDependencies": ["jszip"],
+            "allowedCommonJsDependencies": [
+              "jszip",
+              "elkjs",
+              "cytoscape-fcose",
+              "cytoscape-cose-bilkent",
+              "@braintree/sanitize-url",
+              "dayjs",
+              "@replit/codemirror-vim",
+              "@replit/codemirror-vim-core"
+            ],
             "assets": [
               {
                 "glob": "**/*",
@@ -46,13 +55,13 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "2MB",
-                  "maximumError": "4MB"
+                  "maximumWarning": "4MB",
+                  "maximumError": "6MB"
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "15kB",
-                  "maximumError": "19kB"
+                  "maximumWarning": "25kB",
+                  "maximumError": "35kB"
                 }
               ],
               "outputHashing": "all",

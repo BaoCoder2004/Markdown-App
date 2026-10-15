@@ -1,0 +1,115 @@
+<div class="format-toolbar">
+  <div class="toolbar-group">
+    <button type="button" class="tool-btn" nz-tooltip nzTooltipTitle="Bold (Ctrl+B)" (click)="trigger('bold')">
+      <span nz-icon nzType="bold"></span>
+    </button>
+    <button type="button" class="tool-btn" nz-tooltip nzTooltipTitle="Italic (Ctrl+I)" (click)="trigger('italic')">
+      <span nz-icon nzType="italic"></span>
+    </button>
+    <button type="button" class="tool-btn" nz-tooltip nzTooltipTitle="Strikethrough" (click)="trigger('strikethrough')">
+      <span nz-icon nzType="strikethrough"></span>
+    </button>
+  </div>
+
+  <span class="toolbar-divider"></span>
+
+  <div class="toolbar-group">
+    <button type="button" class="tool-btn text-label" nzTooltipTitle="Heading 1" (click)="trigger('h1')">H1</button>
+    <button type="button" class="tool-btn text-label" nzTooltipTitle="Heading 2" (click)="trigger('h2')">H2</button>
+    <button type="button" class="tool-btn text-label" nzTooltipTitle="Heading 3" (click)="trigger('h3')">H3</button>
+  </div>
+
+  <span class="toolbar-divider"></span>
+
+  <div class="toolbar-group">
+    <button type="button" class="tool-btn" nz-tooltip nzTooltipTitle="Bullet List" (click)="trigger('bulletList')">
+      <span nz-icon nzType="unordered-list"></span>
+    </button>
+    <button type="button" class="tool-btn" nz-tooltip nzTooltipTitle="Numbered List" (click)="trigger('numberedList')">
+      <span nz-icon nzType="ordered-list"></span>
+    </button>
+    <button type="button" class="tool-btn" nz-tooltip nzTooltipTitle="Task List" (click)="trigger('taskList')">
+      <span nz-icon nzType="check-square"></span>
+    </button>
+    <button type="button" class="tool-btn" nz-tooltip nzTooltipTitle="Blockquote" (click)="trigger('quote')">
+      <span nz-icon nzType="message"></span>
+    </button>
+  </div>
+
+  <span class="toolbar-divider"></span>
+
+  <div class="toolbar-group">
+    <button type="button" class="tool-btn" nz-tooltip nzTooltipTitle="Inline Code" (click)="trigger('inlineCode')">
+      <span nz-icon nzType="code"></span>
+    </button>
+    <button type="button" class="tool-btn" nz-tooltip nzTooltipTitle="Code Block" (click)="trigger('codeBlock')">
+      <span nz-icon nzType="file-text"></span>
+    </button>
+    <button type="button" class="tool-btn" nz-tooltip nzTooltipTitle="Insert Link (Ctrl+K)" (click)="trigger('link')">
+      <span nz-icon nzType="link"></span>
+    </button>
+    <button type="button" class="tool-btn" nz-tooltip nzTooltipTitle="Insert Image" (click)="trigger('image')">
+      <span nz-icon nzType="picture"></span>
+    </button>
+    <button type="button" class="tool-btn" nz-tooltip nzTooltipTitle="Insert Table" (click)="trigger('table')">
+      <span nz-icon nzType="table"></span>
+    </button>
+    <div class="tool-dropdown-wrap" nz-dropdown [nzDropdownMenu]="mathMenu" nzTrigger="click">
+      <button type="button" class="tool-btn text-label" nz-tooltip nzTooltipTitle="Math Formula Templates (KaTeX)">
+        Σ
+        <span nz-icon nzType="down" class="dropdown-arrow"></span>
+      </button>
+    </div>
+    <nz-dropdown-menu #mathMenu="nzDropdownMenu">
+      <ul nz-menu>
+        <li nz-menu-item (click)="trigger('math')">
+          <span class="menu-snippet-code">$...$</span> Inline Formula ($E = mc^2$)
+        </li>
+        <li nz-menu-item (click)="trigger('mathBlock')">
+          <span class="menu-snippet-code">$$...$$</span> Block Equation
+        </li>
+        <li nz-menu-item (click)="trigger('mathMatrix')">
+          <span class="menu-snippet-code">[Matrix]</span> 2x2 Matrix
+        </li>
+      </ul>
+    </nz-dropdown-menu>
+
+    <div class="tool-dropdown-wrap" nz-dropdown [nzDropdownMenu]="mermaidMenu" nzTrigger="click">
+      <button type="button" class="tool-btn" nz-tooltip nzTooltipTitle="Mermaid Diagram Templates">
+        <span nz-icon nzType="branches"></span>
+        <span nz-icon nzType="down" class="dropdown-arrow"></span>
+      </button>
+    </div>
+    <nz-dropdown-menu #mermaidMenu="nzDropdownMenu">
+      <ul nz-menu>
+        <li nz-menu-item (click)="trigger('mermaidFlowchart')">
+          <span nz-icon nzType="apartment"></span> Flowchart (TD)
+        </li>
+        <li nz-menu-item (click)="trigger('mermaidSequence')">
+          <span nz-icon nzType="interaction"></span> Sequence Diagram
+        </li>
+        <li nz-menu-item (click)="trigger('mermaidClass')">
+          <span nz-icon nzType="block"></span> Class Diagram
+        </li>
+        <li nz-menu-item (click)="trigger('mermaidState')">
+          <span nz-icon nzType="sync"></span> State Diagram
+        </li>
+        <li nz-menu-item (click)="trigger('mermaidEr')">
+          <span nz-icon nzType="database"></span> Entity Relationship (ERD)
+        </li>
+        <li nz-menu-item (click)="trigger('mermaidGit')">
+          <span nz-icon nzType="fork"></span> Git Graph
+        </li>
+      </ul>
+    </nz-dropdown-menu>
+  </div>
+
+  <span class="toolbar-divider"></span>
+
+  <div class="toolbar-group">
+    <button type="button" class="tool-btn" nz-tooltip nzTooltipTitle="Find & Replace (Ctrl+F)" (click)="trigger('search')">
+      <span nz-icon nzType="search"></span>
+    </button>
+  </div>
+</div>
+
